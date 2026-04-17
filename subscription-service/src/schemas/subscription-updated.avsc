@@ -1,0 +1,28 @@
+{
+  "type": "record",
+  "name": "SubscriptionUpdated",
+  "namespace": "billing",
+  "fields": [
+    { "name": "subscriptionId", "type": "string" },
+    { "name": "userId", "type": "string" },
+    { "name": "planId", "type": "string" },
+    {
+      "name": "status",
+      "type": {
+        "type": "enum",
+        "name": "SubscriptionStatus",
+        "symbols": [
+          "TRIALING",
+          "ACTIVE",
+          "PAST_DUE",
+          "CANCELED",
+          "EXPIRED"
+        ]
+      }
+    },
+    { "name": "currentPeriodStart", "type": "string" },
+    { "name": "currentPeriodEnd", "type": "string" },
+    { "name": "cancelAtPeriodEnd", "type": "boolean" },
+    { "name": "updatedAt", "type": "string" }
+  ]
+}

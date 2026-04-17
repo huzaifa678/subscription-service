@@ -1,0 +1,20 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "baseUrl": "./",
+    "paths": {
+      "@model/*": ["src/model/*"],
+      "@entities/*": ["src/model/entities/*"],
+      "@dtos/*": ["src/model/dtos/*"],
+      "@mapper/*": ["src/mapper/*"],
+      "@service/*": ["src/service/*"],
+      "@resolvers/*": ["src/resolvers/*"],
+      "@pb/*": ["src/pb/*"],
+      "@logger/*": ["src/logger/*"],
+      "@events/*": ["src/events/*"],
+      "@repository/*": ["src/repository/*"],
+      "@lib/*": ["src/lib/*"]
+    }
+  },
+  "exclude": ["node_modules", "test", "dist", "**/*spec.ts"]
+}
