@@ -1,0 +1,73 @@
+name: subscription-service CD
+
+on:
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: get ECR URL
+        id: ecr
+        run: |
+          ECR_URL=$(aws ecr describe-repositories --repository-names subscription-service \
+            --query 'repositories[0].repositoryUri' --output text)
+          echo "url=$ECR_URL" >> $GITHUB_OUTPUT
+
+      - uses: aws-actions/amazon-ecr-login@v2
+
+      - name: build & push image
+        uses: docker/build-push-action@v6
+        with:
+          context: subscription-service
+          push: true
+          tags: ${{ steps.ecr.outputs.url }}:${{ github.sha }}
+
+      - name: write prod env file
+        run: |
+          cat > /tmp/sub.env <<EOF
+          POSTGRES_HOST=${{ secrets.PROD_SUBSCRIPTION_DB_HOST }}
+          POSTGRES_PORT=5432
+          POSTGRES_USER=${{ secrets.PROD_SUBSCRIPTION_DB_USER }}
+          POSTGRES_PASSWORD=${{ secrets.PROD_SUBSCRIPTION_DB_PASSWORD }}
+          POSTGRES_DB=${{ secrets.PROD_SUBSCRIPTION_DB_NAME }}
+          KAFKA_BROKER=${{ secrets.PROD_KAFKA_BROKER }}
+          SCHEMA_REGISTRY_URL=${{ secrets.PROD_SCHEMA_REGISTRY_URL }}
+          OTEL_EXPORTER_OTLP_ENDPOINT=${{ secrets.PROD_OTEL_ENDPOINT }}
+          OTEL_SERVICE_NAME=subscription-service
+          EOF
+
+      - name: update ArgoCD values-prod.yaml
+        env:
+          ARGOCD_REPO_TOKEN: ${{ secrets.ARGOCD_REPO_TOKEN }}
+        run: |
+          git clone https://x-access-token:${ARGOCD_REPO_TOKEN}@github.com/huzaifa678/SAAS-Continious-Delivery.git /tmp/cd
+          cd /tmp/cd
+
+          wget -qO /usr/local/bin/yq \
+            https://github.com/mikefarah/yq/releases/download/v4.44.3/yq_linux_amd64
+          chmod +x /usr/local/bin/yq
+
+          yq -i '.subscriptionService.image.repository = "${{ steps.ecr.outputs.url }}"' saas-chart/values-prod.yaml
+          yq -i '.subscriptionService.image.tag        = "${{ github.sha }}"'             saas-chart/values-prod.yaml
+
+          SUB_ENV_B64=$(base64 -w0 /tmp/sub.env)
+          yq -i ".subscriptionService.envSecret = \"$SUB_ENV_B64\"" saas-chart/values-prod.yaml
+
+          git config user.email "ci@github.com"
+          git config user.name  "GitHub Actions"
+          git add saas-chart/values-prod.yaml
+          git commit -m "cd(subscription-service): update image to ${{ github.sha }}"
+          git push
