@@ -8,6 +8,7 @@ import { SubscriptionEntity } from '@model/entities/subscription.entity';
 import { ApolloDriver, ApolloDriverConfig } from '@nestjs/apollo';
 import { KafkaModule } from './kafka.module';
 import { WinstonLogger } from '@logger/winston.logger';
+import { HealthController } from './controller/health.controller';
 
 @Module({
   imports: [
@@ -40,5 +41,6 @@ import { WinstonLogger } from '@logger/winston.logger';
   ],
   providers: [WinstonLogger],
   exports: [WinstonLogger],
+  controllers: [HealthController],
 })
 export class AppModule {}
