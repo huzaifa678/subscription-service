@@ -1,26 +1,45 @@
 name: subscription-service CD
 
 on:
-  push:
-    branches: [test, main]
+  pull_request:
+    branches: [main]
+    paths: [subscription-service/**]
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
 
     steps:
-      - name: Set environment
-        id: vars
-        run: |
-          if [[ "${GITHUB_REF##*/}" == "test" ]]; then
-            echo "file=values-test.yaml" >> $GITHUB_OUTPUT
-            echo "env=test" >> $GITHUB_OUTPUT
-          else
-            echo "file=values-prod.yaml" >> $GITHUB_OUTPUT
-            echo "env=prod" >> $GITHUB_OUTPUT
-          fi
+      - uses: actions/checkout@v4
 
-      - name: Clone GitOps repo
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Get ECR URL
+        id: ecr
+        run: |
+          ECR_URL=$(aws ecr describe-repositories --repository-names subscription-service \
+            --query 'repositories[0].repositoryUri' --output text)
+          echo "url=$ECR_URL" >> $GITHUB_OUTPUT
+
+      - name: Login to ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Retag sha → prod
+        run: |
+          MANIFEST=$(aws ecr batch-get-image --repository-name subscription-service \
+            --image-ids imageTag=sha-${{ github.sha }} \
+            --query 'images[0].imageManifest' --output text)
+          aws ecr put-image --repository-name subscription-service \
+            --image-tag prod --image-manifest "$MANIFEST"
+
+      - name: Update ArgoCD values-prod.yaml
         env:
           ARGOCD_REPO_TOKEN: ${{ secrets.ARGOCD_REPO_TOKEN }}
         run: |
@@ -31,10 +50,10 @@ jobs:
             https://github.com/mikefarah/yq/releases/download/v4.44.3/yq_linux_amd64
           chmod +x /usr/local/bin/yq
 
-          yq -i '.subscriptionService.image.tag = "${{ github.sha }}"' saas-chart/${{ steps.vars.outputs.file }}
+          yq -i '.image.subscriptionService = "${{ steps.ecr.outputs.url }}:prod"' saas-chart/values-prod.yaml
 
           git config user.email "ci@github.com"
-          git config user.name  "GitHub Actions"
-          git add saas-chart/${{ steps.vars.outputs.file }}
-          git commit -m "promote(subscription-service): ${{ steps.vars.outputs.env }} -> ${{ github.sha }}"
+          git config user.name "GitHub Actions"
+          git add saas-chart/values-prod.yaml
+          git commit -m "cd(subscription-service): promote sha-${{ github.sha }} to prod"
           git push
