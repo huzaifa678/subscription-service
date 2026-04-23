@@ -1,5 +1,0 @@
-node_modules
-dist
-coverage
-eslint.config.mjs
-*.js
