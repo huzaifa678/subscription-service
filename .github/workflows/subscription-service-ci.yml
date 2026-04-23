@@ -30,6 +30,9 @@ jobs:
           cache-dependency-path: subscription-service/pnpm-lock.yaml
 
       - run: pnpm install --frozen-lockfile
+
+      - run: pnpm eslint .
+
       - run: pnpm test
 
       - name: Configure AWS credentials
