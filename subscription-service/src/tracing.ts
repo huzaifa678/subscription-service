@@ -36,9 +36,7 @@ const logProvider = new LoggerProvider({
   resource: resourceFromAttributes({
     [ATTR_SERVICE_NAME]: serviceName,
   }),
-  processors: [
-    new SimpleLogRecordProcessor(logExporter),
-  ],
+  processors: [new SimpleLogRecordProcessor(logExporter)],
 });
 
 logs.setGlobalLoggerProvider(logProvider);

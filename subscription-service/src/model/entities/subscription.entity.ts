@@ -19,9 +19,9 @@ registerEnumType(SubscriptionStatus, { name: 'SubscriptionStatus' });
 
 @ObjectType('Subscription')
 @Entity({ name: 'subscriptions' })
-@Index(['userId']) 
+@Index(['userId'])
 @Index(['status'])
-@Index(['currentPeriodEnd']) 
+@Index(['currentPeriodEnd'])
 @Index(['userId', 'status'])
 export class SubscriptionEntity {
   @Field(() => ID)

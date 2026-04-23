@@ -8,7 +8,7 @@ const config: Config.InitialOptions = {
   roots: ['<rootDir>/test'],
   moduleFileExtensions: ['ts', 'js', 'json'],
   reporters: ['default'],
-  maxWorkers: 1, 
+  maxWorkers: 1,
 
   transform: {
     '^.+\\.ts$': ['ts-jest', { tsconfig: 'tsconfig.jest.json' }],

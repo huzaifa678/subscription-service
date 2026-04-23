@@ -64,22 +64,20 @@ const devFormat = winston.format.combine(
   winston.format.colorize(),
   winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
   addTraceContext(),
-  winston.format.printf(
-    (info: TransformableInfo) => {
-      const {
-        timestamp = '',
-        level = '',
-        message = '',
-        traceId,
-        spanId,
-        ...meta
-      } = info;
-      let msg = `${timestamp} [${level}]: ${message}`;
-      if (traceId) msg += ` traceId=${traceId} spanId=${spanId}`;
-      if (Object.keys(meta).length > 0) msg += ` ${JSON.stringify(meta)}`;
-      return msg;
-    },
-  ),
+  winston.format.printf((info: TransformableInfo) => {
+    const {
+      timestamp = '',
+      level = '',
+      message = '',
+      traceId,
+      spanId,
+      ...meta
+    } = info;
+    let msg = `${timestamp} [${level}]: ${message}`;
+    if (traceId) msg += ` traceId=${traceId} spanId=${spanId}`;
+    if (Object.keys(meta).length > 0) msg += ` ${JSON.stringify(meta)}`;
+    return msg;
+  }),
 );
 
 const logger = winston.createLogger({

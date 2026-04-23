@@ -68,7 +68,10 @@ export class SubscriptionEventsProducer implements OnModuleInit {
       );
       return;
     } catch (e: unknown) {
-      const statusCode = typeof e === 'object' && e !== null && 'status' in e ? (e as { status?: number }).status : undefined;
+      const statusCode =
+        typeof e === 'object' && e !== null && 'status' in e
+          ? (e as { status?: number }).status
+          : undefined;
       if (statusCode === 400) {
         const { id } = await this.registry.register(
           {
