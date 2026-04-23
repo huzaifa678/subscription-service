@@ -1,15 +1,15 @@
 import { Injectable, Logger } from '@nestjs/common';
-import * as CircuitBreaker from 'opossum';
+import CircuitBreaker from 'opossum';
 
 @Injectable()
 export class CircuitBreakerService {
   private readonly logger = new Logger(CircuitBreakerService.name);
 
-  create<T extends (...args: any[]) => Promise<any>>(
-    action: T,
-    options?: CircuitBreaker.options,
-    fallback?: (...args: Parameters<T>) => any,
-  ): CircuitBreaker {
+  create<TArgs extends unknown[], TResult>(
+    action: (...args: TArgs) => Promise<TResult>,
+    options?: CircuitBreaker.Options,
+    fallback?: (...args: TArgs) => TResult | Promise<TResult>,
+  ): CircuitBreaker<[...TArgs], TResult> {
     const breaker = new CircuitBreaker(action, {
       timeout: 5000,
       errorThresholdPercentage: 50,
