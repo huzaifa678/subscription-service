@@ -1,0 +1,102 @@
+{
+  "consumer": {
+    "name": "billing-service"
+  },
+  "provider": {
+    "name": "subscription-service"
+  },
+  "interactions": [
+    {
+      "description": "a request to get subscription sub-123",
+      "providerStates": [
+        {
+          "name": "subscription sub-123 exists and is ACTIVE"
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "path": "/subscription.SubscriptionService/GetSubscription",
+        "headers": {
+          "Content-Type": "application/grpc"
+        },
+        "body": {
+          "subscriptionId": "sub-123"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/grpc"
+        },
+        "body": {
+          "id": "sub-123",
+          "userId": "user-456",
+          "planId": "plan-basic",
+          "status": "ACTIVE",
+          "cancelAtPeriodEnd": false
+        },
+        "matchingRules": {
+          "body": {
+            "$.id": { "matchers": [{ "match": "type" }] },
+            "$.userId": { "matchers": [{ "match": "type" }] },
+            "$.planId": { "matchers": [{ "match": "type" }] },
+            "$.status": { "matchers": [{ "match": "type" }] },
+            "$.cancelAtPeriodEnd": { "matchers": [{ "match": "type" }] }
+          }
+        }
+      }
+    },
+    {
+      "description": "a request to get active subscriptions for user user-456",
+      "providerStates": [
+        {
+          "name": "user user-456 has active subscriptions"
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "path": "/subscription.SubscriptionService/GetUserActiveSubscriptions",
+        "headers": {
+          "Content-Type": "application/grpc"
+        },
+        "body": {
+          "userId": "user-456"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/grpc"
+        },
+        "body": {
+          "subscriptions": [
+            {
+              "id": "sub-123",
+              "userId": "user-456",
+              "planId": "plan-basic",
+              "status": "ACTIVE",
+              "cancelAtPeriodEnd": false
+            }
+          ]
+        },
+        "matchingRules": {
+          "body": {
+            "$.subscriptions": { "matchers": [{ "match": "type", "min": 1 }] },
+            "$.subscriptions[*].id": { "matchers": [{ "match": "type" }] },
+            "$.subscriptions[*].userId": { "matchers": [{ "match": "type" }] },
+            "$.subscriptions[*].status": { "matchers": [{ "match": "type" }] }
+          }
+        }
+      }
+    }
+  ],
+  "metadata": {
+    "pactSpecification": {
+      "version": "3.0.0"
+    },
+    "client": {
+      "name": "pact-jvm",
+      "version": "4.6.16"
+    }
+  }
+}
