@@ -4,6 +4,7 @@ import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
 import { Transport } from '@nestjs/microservices';
 import { WinstonLogger } from '@logger/winston.logger';
+import * as grpcPackage from './pb/subscription/v1/subscription_pb';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -15,8 +16,7 @@ async function bootstrap() {
   app.connectMicroservice({
     transport: Transport.GRPC,
     options: {
-      package: 'subscription',
-      protoPath: 'src/proto/subscription.proto',
+      package: grpcPackage.SubscriptionService,
       url: '0.0.0.0:50051',
     },
   });
