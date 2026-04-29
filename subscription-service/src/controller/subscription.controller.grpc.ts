@@ -1,13 +1,8 @@
 import { Controller } from '@nestjs/common';
 import { GrpcMethod } from '@nestjs/microservices';
-import { create } from '@bufbuild/protobuf';
 import { SubscriptionService } from '@service/subscription.service';
-import type {
-  GetSubscriptionRequest,
-  GetSubscriptionResponse,
-  GetUserActiveSubscriptionsRequest,
-  GetUserActiveSubscriptionsResponse,
-} from '@pb/subscription/v1/subscription_pb';
+import * as subscription_pb from '@pb/subscription/v1/subscription_pb';
+import { create } from '@bufbuild/protobuf';
 import { trace, context } from '@opentelemetry/api';
 import { WinstonLogger } from '@logger/winston.logger';
 
@@ -20,13 +15,40 @@ export class SubscriptionGrpcController {
     private readonly logger: WinstonLogger,
   ) {}
 
+  private mapToProto(sub: any): subscription_pb.GetSubscriptionResponse {
+    return create(subscription_pb.GetSubscriptionResponseSchema, {
+      id: sub.id,
+      userId: sub.userId,
+      planId: sub.planId,
+      status: sub.status,
+      currentPeriodStart: {
+        seconds: BigInt(Math.floor(sub.currentPeriodStart.getTime() / 1000)),
+        nanos: 0,
+      },
+      currentPeriodEnd: {
+        seconds: BigInt(Math.floor(sub.currentPeriodEnd.getTime() / 1000)),
+        nanos: 0,
+      },
+      cancelAtPeriodEnd: sub.cancelAtPeriodEnd,
+      createdAt: {
+        seconds: BigInt(Math.floor(sub.createdAt.getTime() / 1000)),
+        nanos: 0,
+      },
+      updatedAt: {
+        seconds: BigInt(Math.floor(sub.updatedAt.getTime() / 1000)),
+        nanos: 0,
+      },
+    });
+  }
+
   @GrpcMethod('SubscriptionService', 'GetSubscription')
   async getSubscription(
-    data: GetSubscriptionRequest,
-  ): Promise<GetSubscriptionResponse> {
+    data: subscription_pb.GetSubscriptionRequest,
+  ): Promise<subscription_pb.GetSubscriptionResponse> {
     this.logger.log(
       `grpc-controller: GetSubscription request subscriptionId=${data.subscriptionId}`,
     );
+
     const span = tracer.startSpan('grpc.GetSubscription');
 
     try {
@@ -48,29 +70,7 @@ export class SubscriptionGrpcController {
             `grpc-controller: GetSubscription found subscriptionId=${data.subscriptionId}`,
           );
 
-          return {
-            id: sub.id,
-            userId: sub.userId,
-            planId: sub.planId,
-            status: sub.status,
-            currentPeriodStart: {
-              seconds: Math.floor(sub.currentPeriodStart.getTime() / 1000),
-              nanos: 0,
-            },
-            currentPeriodEnd: {
-              seconds: Math.floor(sub.currentPeriodEnd.getTime() / 1000),
-              nanos: 0,
-            },
-            cancelAtPeriodEnd: sub.cancelAtPeriodEnd,
-            createdAt: {
-              seconds: Math.floor(sub.createdAt.getTime() / 1000),
-              nanos: 0,
-            },
-            updatedAt: {
-              seconds: Math.floor(sub.updatedAt.getTime() / 1000),
-              nanos: 0,
-            },
-          };
+          return this.mapToProto(sub); 
         },
       );
     } catch (err) {
@@ -78,10 +78,12 @@ export class SubscriptionGrpcController {
         `grpc-controller: GetSubscription failed subscriptionId=${data.subscriptionId}`,
         err,
       );
+
       span.setStatus({
         code: 2,
         message: err instanceof Error ? err.message : String(err),
       });
+
       throw err;
     } finally {
       span.end();
@@ -90,12 +92,14 @@ export class SubscriptionGrpcController {
 
   @GrpcMethod('SubscriptionService', 'GetUserActiveSubscriptions')
   async getUserActiveSubscriptions(
-    data: GetUserActiveSubscriptionsRequest,
-  ): Promise<GetUserActiveSubscriptionsResponse> {
+    data: subscription_pb.GetUserActiveSubscriptionsRequest,
+  ): Promise<subscription_pb.GetUserActiveSubscriptionsResponse> {
     this.logger.log(
       `grpc-controller: GetUserActiveSubscriptions request userId=${data.userId}`,
     );
+
     const span = tracer.startSpan('grpc.GetUserActiveSubscriptions');
+
     try {
       const subs = await context.with(
         trace.setSpan(context.active(), span),
@@ -107,40 +111,20 @@ export class SubscriptionGrpcController {
         `grpc-controller: GetUserActiveSubscriptions found ${subs.length} subscriptions for userId=${data.userId}`,
       );
 
-      return {
-        subscriptions: subs.map((sub) => ({
-          id: sub.id,
-          userId: sub.userId,
-          planId: sub.planId,
-          status: sub.status,
-          currentPeriodStart: {
-            seconds: Math.floor(sub.currentPeriodStart.getTime() / 1000),
-            nanos: 0,
-          },
-          currentPeriodEnd: {
-            seconds: Math.floor(sub.currentPeriodEnd.getTime() / 1000),
-            nanos: 0,
-          },
-          cancelAtPeriodEnd: sub.cancelAtPeriodEnd,
-          createdAt: {
-            seconds: Math.floor(sub.createdAt.getTime() / 1000),
-            nanos: 0,
-          },
-          updatedAt: {
-            seconds: Math.floor(sub.updatedAt.getTime() / 1000),
-            nanos: 0,
-          },
-        })),
-      };
+      return create(subscription_pb.GetUserActiveSubscriptionsResponseSchema, {
+        subscriptions: subs.map((sub) => this.mapToProto(sub)), 
+      });
     } catch (err) {
       this.logger.error(
         `grpc-controller: GetUserActiveSubscriptions failed userId=${data.userId}`,
         err,
       );
+
       span.setStatus({
         code: 2,
         message: err instanceof Error ? err.message : String(err),
       });
+
       throw err;
     } finally {
       span.end();
