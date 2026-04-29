@@ -6,10 +6,13 @@ FROM node:22-alpine AS deps
                                                                                                                         
   FROM node:22-alpine AS build                                                                                          
   WORKDIR /app                                                                                                          
-  RUN corepack enable && corepack prepare pnpm@latest --activate                                                        
+  RUN corepack enable && corepack prepare pnpm@latest --activate       
+  RUN apk add --no-cache curl \
+  && curl -sSL https://github.com/bufbuild/buf/releases/latest/download/buf-Linux-x86_64 \
+  -o /usr/local/bin/buf \
+  && chmod +x /usr/local/bin/buf                                                 
   COPY --from=deps /app/node_modules ./node_modules                                                                     
-  COPY src ./src                                                                                                        
-  COPY tsconfig.json tsconfig.build.json nest-cli.json package.json ./                                                  
+  COPY . .                              
   RUN pnpm build                                                                                                        
                                                                                                                         
   FROM node:22-alpine AS runtime                                                                                        

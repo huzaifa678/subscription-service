@@ -1,12 +1,13 @@
 import { Controller } from '@nestjs/common';
 import { GrpcMethod } from '@nestjs/microservices';
+import { create } from '@bufbuild/protobuf';
 import { SubscriptionService } from '@service/subscription.service';
-import {
+import type {
   GetSubscriptionRequest,
+  GetSubscriptionResponse,
   GetUserActiveSubscriptionsRequest,
   GetUserActiveSubscriptionsResponse,
-  SubscriptionResponse,
-} from '@pb/src/proto/subscription';
+} from '@pb/subscription/v1/subscription_pb';
 import { trace, context } from '@opentelemetry/api';
 import { WinstonLogger } from '@logger/winston.logger';
 
@@ -22,7 +23,7 @@ export class SubscriptionGrpcController {
   @GrpcMethod('SubscriptionService', 'GetSubscription')
   async getSubscription(
     data: GetSubscriptionRequest,
-  ): Promise<SubscriptionResponse> {
+  ): Promise<GetSubscriptionResponse> {
     this.logger.log(
       `grpc-controller: GetSubscription request subscriptionId=${data.subscriptionId}`,
     );

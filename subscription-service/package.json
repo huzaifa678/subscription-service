@@ -22,7 +22,7 @@
     "proto:gen": "protoc --plugin=./node_modules/.bin/protoc-gen-ts_proto --ts_proto_out=src/pb/ --ts_proto_opt=nestJs=true,outputClientImpl=grpc-js,outputServices=grpc-js src/proto/*.proto",
     "migrate": "pnpm dlx tsx node_modules/typeorm/cli.js migration:generate -d ./data-source.ts ./migrations/CreateSubscriptionsTable",
     "run-migrations": "pnpm dlx tsx node_modules/typeorm/cli.js migration:run -d ./data-source.ts",
-    "proto:pull": "buf export buf.build/protocol-buffer-org/proto --output ./temp-protos",
+    "proto:pull": "buf export buf.build/protocol-buffer-org/proto --output ./src/temp-protos",
     "proto:gen-buf": "buf generate buf.build/protocol-buffer-org/proto",
     "prebuild": "pnpm run proto:pull && pnpm run proto:gen-buf",
     "prestart:dev": "pnpm run proto:pull && pnpm run proto:gen-buf"
