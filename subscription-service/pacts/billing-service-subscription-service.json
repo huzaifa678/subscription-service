@@ -81,10 +81,10 @@
         },
         "matchingRules": {
           "body": {
-            "$.subscriptions": { "matchers": [{ "match": "type", "min": 1 }] },
-            "$.subscriptions[*].id": { "matchers": [{ "match": "type" }] },
-            "$.subscriptions[*].userId": { "matchers": [{ "match": "type" }] },
-            "$.subscriptions[*].status": { "matchers": [{ "match": "type" }] }
+            "$.id": { "matchers": [{ "match": "type", "regex": "^[0-9a-fA-F-]{36}$" }] },
+            "$.subscriptions[*].id": { "matchers": [{ "match": "type", "regex": "^[0-9a-fA-F-]{36}$" }] },
+            "$.subscriptions[*].userId": { "matchers": [{ "match": "type", "regex": "^[0-9a-fA-F-]{36}$" }] },
+            "$.subscriptions[*].status": { "matchers": [{ "match": "type", "regex": "^(ACTIVE|INACTIVE)$" }] }
           }
         }
       }
