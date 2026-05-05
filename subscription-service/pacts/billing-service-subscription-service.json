@@ -7,10 +7,10 @@
   },
   "interactions": [
     {
-      "description": "a request to get subscription sub-123",
+      "description": "a request to get subscription 550e8400-e29b-41d4-a716-446655440000",
       "providerStates": [
         {
-          "name": "subscription sub-123 exists and is ACTIVE"
+          "name": "subscription exists and is ACTIVE"
         }
       ],
       "request": {
@@ -20,7 +20,7 @@
           "Content-Type": "application/grpc"
         },
         "body": {
-          "subscriptionId": "sub-123"
+          "subscriptionId": "550e8400-e29b-41d4-a716-446655440000"
         }
       },
       "response": {
@@ -29,8 +29,8 @@
           "Content-Type": "application/grpc"
         },
         "body": {
-          "id": "sub-123",
-          "userId": "user-456",
+          "id": "550e8400-e29b-41d4-a716-446655440000",
+          "userId": "9f1c2d3e-7a8b-4c5d-9e0f-123456789abc",
           "planId": "plan-basic",
           "status": "ACTIVE",
           "cancelAtPeriodEnd": false
@@ -47,10 +47,10 @@
       }
     },
     {
-      "description": "a request to get active subscriptions for user user-456",
+      "description": "a request to get active subscriptions for user 9f1c2d3e-7a8b-4c5d-9e0f-123456789abc",
       "providerStates": [
         {
-          "name": "user user-456 has active subscriptions"
+          "name": "user has active subscriptions"
         }
       ],
       "request": {
@@ -60,7 +60,7 @@
           "Content-Type": "application/grpc"
         },
         "body": {
-          "userId": "user-456"
+          "userId": "9f1c2d3e-7a8b-4c5d-9e0f-123456789abc"
         }
       },
       "response": {
@@ -71,8 +71,8 @@
         "body": {
           "subscriptions": [
             {
-              "id": "sub-123",
-              "userId": "user-456",
+              "id": "550e8400-e29b-41d4-a716-446655440000",
+              "userId": "9f1c2d3e-7a8b-4c5d-9e0f-123456789abc",
               "planId": "plan-basic",
               "status": "ACTIVE",
               "cancelAtPeriodEnd": false
