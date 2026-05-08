@@ -36,7 +36,7 @@
     "@kafkajs/confluent-schema-registry": "^3.9.0",
     "@nestjs/apollo": "^13.2.3",
     "@nestjs/common": "^11.0.1",
-    "@nestjs/core": "^11.0.1",
+    "@nestjs/core": "^11.1.19",
     "@nestjs/graphql": "^13.4.0",
     "@nestjs/microservices": "^11.1.13",
     "@nestjs/platform-express": "^11.0.1",
