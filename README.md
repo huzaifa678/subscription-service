@@ -46,7 +46,7 @@ graph TD
 | Runtime | Node.js / TypeScript |
 | Framework | NestJS 11 |
 | API | GraphQL (Apollo Server 5) |
-| Internal RPC | gRPC (proto-loader) |
+| Internal RPC | gRPC (Buf Registry fetch) |
 | Database | PostgreSQL (TypeORM) |
 | Messaging | Apache Kafka (KafkaJS + Confluent Schema Registry) |
 | Schema | Avro |
