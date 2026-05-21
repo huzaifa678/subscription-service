@@ -35,7 +35,7 @@
     "@grpc/proto-loader": "^0.8.1",
     "@kafkajs/confluent-schema-registry": "^4.0.8",
     "@nestjs/apollo": "^13.2.3",
-    "@nestjs/common": "^11.1.21",
+    "@nestjs/common": "^11.1.22",
     "@nestjs/core": "^11.1.21",
     "@nestjs/graphql": "^13.4.0",
     "@nestjs/microservices": "^11.1.21",
