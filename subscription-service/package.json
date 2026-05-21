@@ -31,7 +31,7 @@
     "@apollo/server": "^5.5.1",
     "@as-integrations/express5": "^1.1.2",
     "@bufbuild/protobuf": "^2.11.0",
-    "@grpc/grpc-js": "^1.14.3",
+    "@grpc/grpc-js": "^1.14.4",
     "@grpc/proto-loader": "^0.8.1",
     "@kafkajs/confluent-schema-registry": "^4.0.8",
     "@nestjs/apollo": "^13.2.3",
