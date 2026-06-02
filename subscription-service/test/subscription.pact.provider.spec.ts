@@ -1,16 +1,24 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication } from '@nestjs/common';
+import { Transport } from '@nestjs/microservices';
 import { TypeOrmModule, getRepositoryToken } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { PactVerifierService, PactProviderModule } from 'nestjs-pact';
+import { Verifier } from '@pact-foundation/pact';
 import * as path from 'path';
 import { startPostgresContainer } from './utils/postgres-testcontainer';
 import { SubscriptionEntity } from '../src/model/entities/subscription.entity';
 import { SubscriptionStatus } from '../src/model/domain/subscription-status.enum';
+import { SubscriptionModule } from '../src/subscription.module';
+
+const GRPC_PORT = 50151;
+const PROTO_PATH = '/Users/smartboy/proto/subscription/v1/subscription.proto';
+const PROTO_INCLUDE_DIR = '/Users/smartboy/proto';
+
+const SUB_ID = '550e8400-e29b-41d4-a716-446655440000';
+const USER_ID = '9f1c2d3e-7a8b-4c5d-9e0f-123456789abc';
 
 describe('Pact Provider Verification: subscription-service (gRPC)', () => {
   let app: INestApplication;
-  let verifier: PactVerifierService;
   let subscriptionRepo: Repository<SubscriptionEntity>;
 
   beforeAll(async () => {
@@ -29,46 +37,7 @@ describe('Pact Provider Verification: subscription-service (gRPC)', () => {
           synchronize: true,
         }),
         TypeOrmModule.forFeature([SubscriptionEntity]),
-
-        PactProviderModule.register({
-          provider: 'subscription-service',
-          pactUrls: [
-            path.resolve(
-              __dirname,
-              '../pacts/billing-service-subscription-service.json',
-            ),
-          ],
-
-          logLevel: 'warn',
-
-          grpc: {
-            protoPath: path.resolve(
-              __dirname,
-              '../proto/subscription.proto',
-            ),
-            package: 'subscription',
-            service: 'SubscriptionService',
-          },
-
-          stateHandlers: {
-            'subscription sub-123 exists and is ACTIVE': async () => {
-              await subscriptionRepo.save({
-                id: 'sub-123',
-                userId: 'user-456',
-                planId: 'plan-basic',
-                status: SubscriptionStatus.ACTIVE,
-                currentPeriodStart: new Date(),
-                currentPeriodEnd: new Date(),
-                cancelAtPeriodEnd: false,
-              });
-            },
-          },
-        }),
-      ],
-
-      providers: [
-        SubscriptionService,
-        SubscriptionRepository,
+        SubscriptionModule,
       ],
     }).compile();
 
@@ -77,26 +46,63 @@ describe('Pact Provider Verification: subscription-service (gRPC)', () => {
     app.connectMicroservice({
       transport: Transport.GRPC,
       options: {
-        package: 'subscription',
-        protoPath: path.join(__dirname, '../proto/subscription.proto'),
+        package: 'subscription.v1',
+        protoPath: PROTO_PATH,
+        url: `0.0.0.0:${GRPC_PORT}`,
+        loader: { includeDirs: [PROTO_INCLUDE_DIR] },
       },
     });
 
     await app.startAllMicroservices();
     await app.init();
 
-    subscriptionRepo = moduleRef.get(
-      getRepositoryToken(SubscriptionEntity),
-    );
-
-    verifier = moduleRef.get(PactVerifierService);
-  });
+    subscriptionRepo = moduleRef.get(getRepositoryToken(SubscriptionEntity));
+  }, 120_000);
 
   afterAll(async () => {
-    await app.close();
+    await app?.close();
   });
 
   it('validates gRPC contract from billing-service', async () => {
-    await verifier.verify(app);
-  });
+    const verifier = new Verifier({
+      provider: 'subscription-service',
+      providerVersion: process.env.GIT_COMMIT || '0.0.0-local',
+      pactUrls: [
+        path.resolve(
+          __dirname,
+          '../pacts/billing-service-subscription-service.json',
+        ),
+      ],
+      transports: [{ port: GRPC_PORT, protocol: 'grpc' }],
+      logLevel: 'warn',
+      stateHandlers: {
+        [`subscription ${SUB_ID} exists and is ACTIVE`]: async () => {
+          await subscriptionRepo.delete({ id: SUB_ID });
+          await subscriptionRepo.save({
+            id: SUB_ID,
+            userId: USER_ID,
+            planId: 'plan-basic',
+            status: SubscriptionStatus.ACTIVE,
+            currentPeriodStart: new Date(),
+            currentPeriodEnd: new Date(Date.now() + 30 * 24 * 3600 * 1000),
+            cancelAtPeriodEnd: false,
+          });
+        },
+        [`user ${USER_ID} has one ACTIVE subscription`]: async () => {
+          await subscriptionRepo.delete({ userId: USER_ID });
+          await subscriptionRepo.save({
+            id: SUB_ID,
+            userId: USER_ID,
+            planId: 'plan-basic',
+            status: SubscriptionStatus.ACTIVE,
+            currentPeriodStart: new Date(),
+            currentPeriodEnd: new Date(Date.now() + 30 * 24 * 3600 * 1000),
+            cancelAtPeriodEnd: false,
+          });
+        },
+      },
+    });
+
+    await verifier.verifyProvider();
+  }, 120_000);
 });

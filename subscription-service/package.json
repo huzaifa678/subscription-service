@@ -59,7 +59,6 @@
     "graphql-scalars": "^1.25.0",
     "kafkajs": "^2.2.4",
     "logform": "^2.7.0",
-    "nestjs-pact": "^3.0.0",
     "opossum": "^9.0.0",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",

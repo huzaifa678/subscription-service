@@ -2,101 +2,317 @@
   "consumer": {
     "name": "billing-service"
   },
-  "provider": {
-    "name": "subscription-service"
-  },
   "interactions": [
     {
-      "description": "a request to get subscription 550e8400-e29b-41d4-a716-446655440000",
+      "comments": {
+        "testname": "com.project.billing_service.pact.SubscriptionGrpcClientPactTest.getSubscription_returnsActiveSubscription(MockServer)"
+      },
+      "description": "a GetSubscription request for an ACTIVE subscription",
+      "interactionMarkup": {
+        "markup": "```protobuf\nmessage GetSubscriptionRequest {\n    string subscription_id = 1;\n}\n```\n\n```protobuf\nmessage GetSubscriptionResponse {\n    string id = 1;\n    string user_id = 2;\n    string plan_id = 3;\n    string status = 4;\n    bool cancel_at_period_end = 7;\n}\n```\n",
+        "markupType": "COMMON_MARK"
+      },
+      "key": "981654cd",
+      "pending": false,
+      "pluginConfiguration": {
+        "protobuf": {
+          "descriptorKey": "ad3691004523f8d565e73ba1a6f22c21",
+          "expectations": {
+            "request": {
+              "subscription_id": "matching(regex, '^[0-9a-fA-F-]{36}$', '550e8400-e29b-41d4-a716-446655440000')"
+            },
+            "response": [
+              {
+                "cancel_at_period_end": "matching(boolean, false)",
+                "id": "matching(regex, '^[0-9a-fA-F-]{36}$', '550e8400-e29b-41d4-a716-446655440000')",
+                "plan_id": "matching(type, 'plan-basic')",
+                "status": "matching(regex, '^(ACTIVE|INACTIVE|CANCELLED|PAUSED)$', 'ACTIVE')",
+                "user_id": "matching(regex, '^[0-9a-fA-F-]{36}$', '9f1c2d3e-7a8b-4c5d-9e0f-123456789abc')"
+              },
+              {
+                "cancel_at_period_end": "matching(boolean, false)",
+                "id": "matching(regex, '^[0-9a-fA-F-]{36}$', '550e8400-e29b-41d4-a716-446655440000')",
+                "plan_id": "matching(type, 'plan-basic')",
+                "status": "matching(regex, '^(ACTIVE|INACTIVE|CANCELLED|PAUSED)$', 'ACTIVE')",
+                "user_id": "matching(regex, '^[0-9a-fA-F-]{36}$', '9f1c2d3e-7a8b-4c5d-9e0f-123456789abc')"
+              }
+            ]
+          },
+          "service": ".subscription.v1.SubscriptionService/GetSubscription"
+        }
+      },
       "providerStates": [
         {
-          "name": "subscription exists and is ACTIVE"
+          "name": "subscription 550e8400-e29b-41d4-a716-446655440000 exists and is ACTIVE"
         }
       ],
       "request": {
-        "method": "POST",
-        "path": "/subscription.SubscriptionService/GetSubscription",
-        "headers": {
-          "Content-Type": "application/grpc"
-        },
-        "body": {
-          "subscriptionId": "550e8400-e29b-41d4-a716-446655440000"
-        }
-      },
-      "response": {
-        "status": 200,
-        "headers": {
-          "Content-Type": "application/grpc"
-        },
-        "body": {
-          "id": "550e8400-e29b-41d4-a716-446655440000",
-          "userId": "9f1c2d3e-7a8b-4c5d-9e0f-123456789abc",
-          "planId": "plan-basic",
-          "status": "ACTIVE",
-          "cancelAtPeriodEnd": false
+        "contents": {
+          "content": "CiQ1NTBlODQwMC1lMjliLTQxZDQtYTcxNi00NDY2NTU0NDAwMDA=",
+          "contentType": "application/protobuf; message=.subscription.v1.GetSubscriptionRequest",
+          "contentTypeHint": "BINARY",
+          "encoded": "base64"
         },
         "matchingRules": {
           "body": {
-            "$.id": { "matchers": [{ "match": "type" }] },
-            "$.userId": { "matchers": [{ "match": "type" }] },
-            "$.planId": { "matchers": [{ "match": "type" }] },
-            "$.status": { "matchers": [{ "match": "type" }] },
-            "$.cancelAtPeriodEnd": { "matchers": [{ "match": "type" }] }
+            "$.subscription_id": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[0-9a-fA-F-]{36}$"
+                }
+              ]
+            }
+          }
+        },
+        "metadata": {
+          "contentType": "application/protobuf;message=.subscription.v1.GetSubscriptionRequest"
+        }
+      },
+      "response": [
+        {
+          "contents": {
+            "content": "CiQ1NTBlODQwMC1lMjliLTQxZDQtYTcxNi00NDY2NTU0NDAwMDASJDlmMWMyZDNlLTdhOGItNGM1ZC05ZTBmLTEyMzQ1Njc4OWFiYxoKcGxhbi1iYXNpYyIGQUNUSVZFOAA=",
+            "contentType": "application/protobuf; message=.subscription.v1.GetSubscriptionResponse",
+            "contentTypeHint": "BINARY",
+            "encoded": "base64"
+          },
+          "matchingRules": {
+            "body": {
+              "$.cancel_at_period_end": {
+                "combine": "AND",
+                "matchers": [
+                  {
+                    "match": "boolean"
+                  }
+                ]
+              },
+              "$.id": {
+                "combine": "AND",
+                "matchers": [
+                  {
+                    "match": "regex",
+                    "regex": "^[0-9a-fA-F-]{36}$"
+                  }
+                ]
+              },
+              "$.plan_id": {
+                "combine": "AND",
+                "matchers": [
+                  {
+                    "match": "type"
+                  }
+                ]
+              },
+              "$.status": {
+                "combine": "AND",
+                "matchers": [
+                  {
+                    "match": "regex",
+                    "regex": "^(ACTIVE|INACTIVE|CANCELLED|PAUSED)$"
+                  }
+                ]
+              },
+              "$.user_id": {
+                "combine": "AND",
+                "matchers": [
+                  {
+                    "match": "regex",
+                    "regex": "^[0-9a-fA-F-]{36}$"
+                  }
+                ]
+              }
+            }
+          },
+          "metadata": {
+            "contentType": "application/protobuf;message=.subscription.v1.GetSubscriptionResponse"
           }
         }
-      }
+      ],
+      "transport": "grpc",
+      "type": "Synchronous/Messages"
     },
     {
-      "description": "a request to get active subscriptions for user 9f1c2d3e-7a8b-4c5d-9e0f-123456789abc",
+      "comments": {
+        "testname": "com.project.billing_service.pact.SubscriptionGrpcClientPactTest.getUserActiveSubscriptions_returnsSubscriptionList(MockServer)"
+      },
+      "description": "a GetUserActiveSubscriptions request for a user with one active subscription",
+      "interactionMarkup": {
+        "markup": "```protobuf\nmessage GetUserActiveSubscriptionsRequest {\n    string user_id = 1;\n}\n```\n\n```protobuf\nmessage GetUserActiveSubscriptionsResponse {\n    message .subscription.v1.GetSubscriptionResponse subscriptions = 1;\n}\n```\n",
+        "markupType": "COMMON_MARK"
+      },
+      "key": "8f89caa3",
+      "pending": false,
+      "pluginConfiguration": {
+        "protobuf": {
+          "descriptorKey": "ad3691004523f8d565e73ba1a6f22c21",
+          "expectations": {
+            "request": {
+              "user_id": "matching(regex, '^[0-9a-fA-F-]{36}$', '9f1c2d3e-7a8b-4c5d-9e0f-123456789abc')"
+            },
+            "response": [
+              {
+                "subscriptions": {
+                  "pact:match": "eachValue(matching($'subscription'))",
+                  "pact:min": 1.0,
+                  "subscription": {
+                    "cancel_at_period_end": "matching(boolean, false)",
+                    "id": "matching(regex, '^[0-9a-fA-F-]{36}$', '550e8400-e29b-41d4-a716-446655440000')",
+                    "plan_id": "matching(type, 'plan-basic')",
+                    "status": "matching(regex, '^(ACTIVE|INACTIVE|CANCELLED|PAUSED)$', 'ACTIVE')",
+                    "user_id": "matching(regex, '^[0-9a-fA-F-]{36}$', '9f1c2d3e-7a8b-4c5d-9e0f-123456789abc')"
+                  }
+                }
+              },
+              {
+                "subscriptions": {
+                  "pact:match": "eachValue(matching($'subscription'))",
+                  "pact:min": 1.0,
+                  "subscription": {
+                    "cancel_at_period_end": "matching(boolean, false)",
+                    "id": "matching(regex, '^[0-9a-fA-F-]{36}$', '550e8400-e29b-41d4-a716-446655440000')",
+                    "plan_id": "matching(type, 'plan-basic')",
+                    "status": "matching(regex, '^(ACTIVE|INACTIVE|CANCELLED|PAUSED)$', 'ACTIVE')",
+                    "user_id": "matching(regex, '^[0-9a-fA-F-]{36}$', '9f1c2d3e-7a8b-4c5d-9e0f-123456789abc')"
+                  }
+                }
+              }
+            ]
+          },
+          "service": ".subscription.v1.SubscriptionService/GetUserActiveSubscriptions"
+        }
+      },
       "providerStates": [
         {
-          "name": "user has active subscriptions"
+          "name": "user 9f1c2d3e-7a8b-4c5d-9e0f-123456789abc has one ACTIVE subscription"
         }
       ],
       "request": {
-        "method": "POST",
-        "path": "/subscription.SubscriptionService/GetUserActiveSubscriptions",
-        "headers": {
-          "Content-Type": "application/grpc"
-        },
-        "body": {
-          "userId": "9f1c2d3e-7a8b-4c5d-9e0f-123456789abc"
-        }
-      },
-      "response": {
-        "status": 200,
-        "headers": {
-          "Content-Type": "application/grpc"
-        },
-        "body": {
-          "subscriptions": [
-            {
-              "id": "550e8400-e29b-41d4-a716-446655440000",
-              "userId": "9f1c2d3e-7a8b-4c5d-9e0f-123456789abc",
-              "planId": "plan-basic",
-              "status": "ACTIVE",
-              "cancelAtPeriodEnd": false
-            }
-          ]
+        "contents": {
+          "content": "CiQ5ZjFjMmQzZS03YThiLTRjNWQtOWUwZi0xMjM0NTY3ODlhYmM=",
+          "contentType": "application/protobuf; message=.subscription.v1.GetUserActiveSubscriptionsRequest",
+          "contentTypeHint": "BINARY",
+          "encoded": "base64"
         },
         "matchingRules": {
           "body": {
-            "$.id": { "matchers": [{ "match": "type", "regex": "^[0-9a-fA-F-]{36}$" }] },
-            "$.subscriptions[*].id": { "matchers": [{ "match": "type", "regex": "^[0-9a-fA-F-]{36}$" }] },
-            "$.subscriptions[*].userId": { "matchers": [{ "match": "type", "regex": "^[0-9a-fA-F-]{36}$" }] },
-            "$.subscriptions[*].status": { "matchers": [{ "match": "type", "regex": "^(ACTIVE|INACTIVE)$" }] }
+            "$.user_id": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[0-9a-fA-F-]{36}$"
+                }
+              ]
+            }
+          }
+        },
+        "metadata": {
+          "contentType": "application/protobuf;message=.subscription.v1.GetUserActiveSubscriptionsRequest"
+        }
+      },
+      "response": [
+        {
+          "contents": {
+            "content": "CmIKJDU1MGU4NDAwLWUyOWItNDFkNC1hNzE2LTQ0NjY1NTQ0MDAwMBIkOWYxYzJkM2UtN2E4Yi00YzVkLTllMGYtMTIzNDU2Nzg5YWJjGgpwbGFuLWJhc2ljIgZBQ1RJVkU4AA==",
+            "contentType": "application/protobuf; message=.subscription.v1.GetUserActiveSubscriptionsResponse",
+            "contentTypeHint": "BINARY",
+            "encoded": "base64"
+          },
+          "matchingRules": {
+            "body": {
+              "$.subscriptions": {
+                "combine": "AND",
+                "matchers": [
+                  {
+                    "match": "values"
+                  }
+                ]
+              },
+              "$.subscriptions.*": {
+                "combine": "AND",
+                "matchers": [
+                  {
+                    "match": "type"
+                  }
+                ]
+              },
+              "$.subscriptions.*.cancel_at_period_end": {
+                "combine": "AND",
+                "matchers": [
+                  {
+                    "match": "boolean"
+                  }
+                ]
+              },
+              "$.subscriptions.*.id": {
+                "combine": "AND",
+                "matchers": [
+                  {
+                    "match": "regex",
+                    "regex": "^[0-9a-fA-F-]{36}$"
+                  }
+                ]
+              },
+              "$.subscriptions.*.plan_id": {
+                "combine": "AND",
+                "matchers": [
+                  {
+                    "match": "type"
+                  }
+                ]
+              },
+              "$.subscriptions.*.status": {
+                "combine": "AND",
+                "matchers": [
+                  {
+                    "match": "regex",
+                    "regex": "^(ACTIVE|INACTIVE|CANCELLED|PAUSED)$"
+                  }
+                ]
+              },
+              "$.subscriptions.*.user_id": {
+                "combine": "AND",
+                "matchers": [
+                  {
+                    "match": "regex",
+                    "regex": "^[0-9a-fA-F-]{36}$"
+                  }
+                ]
+              }
+            }
+          },
+          "metadata": {
+            "contentType": "application/protobuf;message=.subscription.v1.GetUserActiveSubscriptionsResponse"
           }
         }
-      }
+      ],
+      "transport": "grpc",
+      "type": "Synchronous/Messages"
     }
   ],
   "metadata": {
-    "pactSpecification": {
-      "version": "3.0.0"
+    "pact-jvm": {
+      "version": "4.7.1"
     },
-    "client": {
-      "name": "pact-jvm",
-      "version": "4.6.16"
-    }
+    "pactSpecification": {
+      "version": "4.0"
+    },
+    "plugins": [
+      {
+        "configuration": {
+          "ad3691004523f8d565e73ba1a6f22c21": {
+            "protoDescriptors": "Cv8BCh9nb29nbGUvcHJvdG9idWYvdGltZXN0YW1wLnByb3RvEg9nb29nbGUucHJvdG9idWYiOwoJVGltZXN0YW1wEhgKB3NlY29uZHMYASABKANSB3NlY29uZHMSFAoFbmFub3MYAiABKAVSBW5hbm9zQoUBChNjb20uZ29vZ2xlLnByb3RvYnVmQg5UaW1lc3RhbXBQcm90b1ABWjJnb29nbGUuZ29sYW5nLm9yZy9wcm90b2J1Zi90eXBlcy9rbm93bi90aW1lc3RhbXBwYvgBAaICA0dQQqoCHkdvb2dsZS5Qcm90b2J1Zi5XZWxsS25vd25UeXBlc2IGcHJvdG8zCv8PChJzdWJzY3JpcHRpb24ucHJvdG8SD3N1YnNjcmlwdGlvbi52MRofZ29vZ2xlL3Byb3RvYnVmL3RpbWVzdGFtcC5wcm90byJBChZHZXRTdWJzY3JpcHRpb25SZXF1ZXN0EicKD3N1YnNjcmlwdGlvbl9pZBgBIAEoCVIOc3Vic2NyaXB0aW9uSWQisgMKF0dldFN1YnNjcmlwdGlvblJlc3BvbnNlEg4KAmlkGAEgASgJUgJpZBIXCgd1c2VyX2lkGAIgASgJUgZ1c2VySWQSFwoHcGxhbl9pZBgDIAEoCVIGcGxhbklkEhYKBnN0YXR1cxgEIAEoCVIGc3RhdHVzEkwKFGN1cnJlbnRfcGVyaW9kX3N0YXJ0GAUgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcFISY3VycmVudFBlcmlvZFN0YXJ0EkgKEmN1cnJlbnRfcGVyaW9kX2VuZBgGIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXBSEGN1cnJlbnRQZXJpb2RFbmQSLwoUY2FuY2VsX2F0X3BlcmlvZF9lbmQYByABKAhSEWNhbmNlbEF0UGVyaW9kRW5kEjkKCmNyZWF0ZWRfYXQYCCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wUgljcmVhdGVkQXQSOQoKdXBkYXRlZF9hdBgJIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXBSCXVwZGF0ZWRBdCI8CiFHZXRVc2VyQWN0aXZlU3Vic2NyaXB0aW9uc1JlcXVlc3QSFwoHdXNlcl9pZBgBIAEoCVIGdXNlcklkInQKIkdldFVzZXJBY3RpdmVTdWJzY3JpcHRpb25zUmVzcG9uc2USTgoNc3Vic2NyaXB0aW9ucxgBIAMoCzIoLnN1YnNjcmlwdGlvbi52MS5HZXRTdWJzY3JpcHRpb25SZXNwb25zZVINc3Vic2NyaXB0aW9uczKDAgoTU3Vic2NyaXB0aW9uU2VydmljZRJkCg9HZXRTdWJzY3JpcHRpb24SJy5zdWJzY3JpcHRpb24udjEuR2V0U3Vic2NyaXB0aW9uUmVxdWVzdBooLnN1YnNjcmlwdGlvbi52MS5HZXRTdWJzY3JpcHRpb25SZXNwb25zZRKFAQoaR2V0VXNlckFjdGl2ZVN1YnNjcmlwdGlvbnMSMi5zdWJzY3JpcHRpb24udjEuR2V0VXNlckFjdGl2ZVN1YnNjcmlwdGlvbnNSZXF1ZXN0GjMuc3Vic2NyaXB0aW9uLnYxLkdldFVzZXJBY3RpdmVTdWJzY3JpcHRpb25zUmVzcG9uc2VCHwobY29tLnByb2plY3Quc3Vic2NyaXB0aW9uLnYxUAFK2wcKBhIEAAAnAQoICgECEgMCABgKCQoCAwASAwQAKQoKCgIEABIEEQATAQoKCgMEAAESAxEIHgoLCgQEAAIAEgMSAh0KDAoFBAACAAESAxIJGAoMCgUEAAIAAxIDEhscCgwKBQQAAgAFEgMSAggKCgoCBAESBBUAHwEKCgoDBAEBEgMVCB8KCwoEBAECABIDFgIQCgwKBQQBAgABEgMWCQsKDAoFBAECAAMSAxYODwoMCgUEAQIABRIDFgIICgsKBAQBAgESAxcCFQoMCgUEAQIBARIDFwkQCgwKBQQBAgEDEgMXExQKDAoFBAECAQUSAxcCCAoLCgQEAQICEgMYAhUKDAoFBAECAgESAxgJEAoMCgUEAQICAxIDGBMUCgwKBQQBAgIFEgMYAggKCwoEBAECAxIDGQIUCgwKBQQBAgMBEgMZCQ8KDAoFBAECAwMSAxkSEwoMCgUEAQIDBRIDGQIICgsKBAQBAgQSAxoCNQoMCgUEAQIEARIDGhwwCgwKBQQBAgQDEgMaMzQKDAoFBAECBAYSAxoCGwoLCgQEAQIFEgMbAjMKDAoFBAECBQESAxscLgoMCgUEAQIFAxIDGzEyCgwKBQQBAgUGEgMbAhsKCwoEBAECBhIDHAIgCgwKBQQBAgYBEgMcBxsKDAoFBAECBgMSAxweHwoMCgUEAQIGBRIDHAIGCgsKBAQBAgcSAx0CKwoMCgUEAQIHARIDHRwmCgwKBQQBAgcDEgMdKSoKDAoFBAECBwYSAx0CGwoLCgQEAQIIEgMeAisKDAoFBAECCAESAx4cJgoMCgUEAQIIAxIDHikqCgwKBQQBAggGEgMeAhsKCgoCBAISBCEAIwEKCgoDBAIBEgMhCCkKCwoEBAICABIDIgIVCgwKBQQCAgABEgMiCRAKDAoFBAICAAMSAyITFAoMCgUEAgIABRIDIgIICgoKAgQDEgQlACcBCgoKAwQDARIDJQgqCgsKBAQDAgASAyYCNQoMCgUEAwIAARIDJiMwCgwKBQQDAgADEgMmMzQKDAoFBAMCAAQSAyYCCgoMCgUEAwIABhIDJgsiCgoKAgYAEgQJAA8BCgoKAwYAARIDCQgbCgwKBAYAAgASBAoCCygKDAoFBgACAAESAwoGFQoMCgUGAAIAAhIDChYsCgwKBQYAAgADEgMLDyYKDAoEBgACARIEDQIOMwoMCgUGAAIBARIDDQYgCgwKBQYAAgECEgMNIUIKDAoFBgACAQMSAw4PMQoICgEIEgMGACIKCAoBCBIDBwA0CgkKAggKEgMGACIKCQoCCAESAwcANAoICgEMEgMAABJiBnByb3RvMw==",
+            "protoFile": "syntax = \"proto3\";\n\npackage subscription.v1;\n\nimport \"google/protobuf/timestamp.proto\";\n\noption java_multiple_files = true;\noption java_package = \"com.project.subscription.v1\";\n\nservice SubscriptionService {\n  rpc GetSubscription(GetSubscriptionRequest) \n      returns (GetSubscriptionResponse);\n\n  rpc GetUserActiveSubscriptions(GetUserActiveSubscriptionsRequest) \n      returns (GetUserActiveSubscriptionsResponse);\n}\n\nmessage GetSubscriptionRequest {\n  string subscription_id = 1;\n}\n\nmessage GetSubscriptionResponse {\n  string id = 1;\n  string user_id = 2;\n  string plan_id = 3;\n  string status = 4;\n  google.protobuf.Timestamp current_period_start = 5;\n  google.protobuf.Timestamp current_period_end = 6;\n  bool cancel_at_period_end = 7;\n  google.protobuf.Timestamp created_at = 8;\n  google.protobuf.Timestamp updated_at = 9;\n}\n\nmessage GetUserActiveSubscriptionsRequest {\n  string user_id = 1;\n}\n\nmessage GetUserActiveSubscriptionsResponse {\n  repeated GetSubscriptionResponse subscriptions = 1;\n}\n"
+          }
+        },
+        "name": "protobuf",
+        "version": "0.8.0"
+      }
+    ]
+  },
+  "provider": {
+    "name": "subscription-service"
   }
 }
