@@ -2,6 +2,8 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { SubscriptionGrpcController } from '@controller/subscription.controller.grpc';
 import { SubscriptionService } from '@service/subscription.service';
 import { WinstonLogger } from '@logger/winston.logger';
+import { create } from '@bufbuild/protobuf';
+import * as subscription_pb from '@pb/subscription/v1/subscription_pb';
 import { mockLogger } from './mock-logger';
 
 describe('SubscriptionGrpcController', () => {
@@ -39,13 +41,15 @@ describe('SubscriptionGrpcController', () => {
       updatedAt: now,
     });
 
-    const result = await controller.getSubscription({
-      subscriptionId: '1',
-    });
+    const result = await controller.getSubscription(
+      create(subscription_pb.GetSubscriptionRequestSchema, {
+        subscriptionId: '1',
+      }),
+    );
 
     expect(result.id).toBe('1');
     expect(result.currentPeriodStart!.seconds).toBe(
-      Math.floor(now.getTime() / 1000),
+      BigInt(Math.floor(now.getTime() / 1000)),
     );
   });
 });
