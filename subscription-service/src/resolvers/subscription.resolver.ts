@@ -3,10 +3,8 @@ import { SubscriptionEntity } from '@model/entities/subscription.entity';
 import { CreateSubscriptionInput } from '@model/dtos/create-subscription.dto';
 import { UpdateSubscriptionInput } from '@model/dtos/update-subscription.dto';
 import { SubscriptionService } from '@service/subscription.service';
-import { trace, context } from '@opentelemetry/api';
+import { withSpan } from '@lib/tracing';
 import { WinstonLogger } from '@logger/winston.logger';
-
-const tracer = trace.getTracer('subscription-service');
 
 @Resolver(() => SubscriptionEntity)
 export class SubscriptionResolver {
@@ -16,95 +14,45 @@ export class SubscriptionResolver {
   ) {}
 
   @Query(() => SubscriptionEntity)
-  async subscription(@Args('id', { type: () => ID }) id: string) {
-    this.logger.log(`subscription-resolver: findById starting for id=${id}`);
-    const span = tracer.startSpan(
-      'subscription.query',
-      undefined,
-      context.active(),
+  subscription(@Args('id', { type: () => ID }) id: string) {
+    return this.trace(`findById id=${id}`, 'subscription.query', () =>
+      this.service.findById(id),
     );
-    try {
-      const result = await this.service.findById(id);
-      this.logger.log(`subscription-resolver: findById succeeded for id=${id}`);
-      span.setStatus({ code: 1 });
-      return result;
-    } catch (error) {
-      this.logger.error(
-        `subscription-resolver: findById failed for id=${id}`,
-        error,
-      );
-      span.setStatus({
-        code: 2,
-        message: (error as Error)?.message || 'unknown',
-      });
-      throw error;
-    } finally {
-      span.end();
-    }
   }
 
   @Mutation(() => SubscriptionEntity)
-  async createSubscription(@Args('input') input: CreateSubscriptionInput) {
-    this.logger.log('subscription-resolver: createSubscription starting');
-    const span = tracer.startSpan(
-      'subscription.create',
-      undefined,
-      context.active(),
+  createSubscription(@Args('input') input: CreateSubscriptionInput) {
+    return this.trace('createSubscription', 'subscription.create', () =>
+      this.service.create(input),
     );
-    try {
-      const result = await this.service.create(input);
-      this.logger.log(
-        `subscription-resolver: createSubscription succeeded id=${result.id}`,
-      );
-      span.setStatus({ code: 1 });
-      return result;
-    } catch (error) {
-      this.logger.error(
-        'subscription-resolver: createSubscription failed',
-        error,
-      );
-      span.setStatus({
-        code: 2,
-        message: (error as Error)?.message || 'unknown',
-      });
-      throw error;
-    } finally {
-      span.end();
-    }
   }
 
   @Mutation(() => SubscriptionEntity)
-  async updateSubscription(
+  updateSubscription(
     @Args('id', { type: () => ID }) id: string,
     @Args('input') input: UpdateSubscriptionInput,
   ) {
-    this.logger.log(
-      `subscription-resolver: updateSubscription starting id=${id}`,
-    );
-    const span = tracer.startSpan(
+    return this.trace(
+      `updateSubscription id=${id}`,
       'subscription.update',
-      undefined,
-      context.active(),
+      () => this.service.update(id, input),
     );
+  }
+
+  /** Wraps a resolver action with a span plus uniform start/success/failure logs. */
+  private async trace<T>(
+    label: string,
+    spanName: string,
+    action: () => Promise<T>,
+  ): Promise<T> {
+    this.logger.log(`subscription-resolver: ${label} starting`);
     try {
-      const result = await this.service.update(id, input);
-      this.logger.log(
-        `subscription-resolver: updateSubscription succeeded id=${id}`,
-      );
-      span.setStatus({ code: 1 });
+      const result = await withSpan(spanName, action);
+      this.logger.log(`subscription-resolver: ${label} succeeded`);
       return result;
     } catch (error) {
-      this.logger.error(
-        `subscription-resolver: updateSubscription failed id=${id}`,
-        error,
-      );
-      span.setStatus({
-        code: 2,
-        message: (error as Error)?.message || 'unknown',
-      });
+      this.logger.error(`subscription-resolver: ${label} failed`, error);
       throw error;
-    } finally {
-      span.end();
     }
   }
 }
