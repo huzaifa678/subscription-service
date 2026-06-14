@@ -11,51 +11,71 @@ import { SubscriptionMapper } from '@mapper/subscription.mapper';
 import { SubscriptionRepository } from '@repository/subscription.repository';
 import { CircuitBreakerService } from '@service/circuit-breaker.service';
 import { SubscriptionEventsProducer } from '@events/subscription.event.producer';
-import { trace, context } from '@opentelemetry/api';
+import { withSpan } from '@lib/tracing';
 
-const tracer = trace.getTracer('subscription-service');
+/** Minimal shape the service needs from an opossum breaker. */
+interface Breaker<TArgs extends unknown[], TResult> {
+  fire(...args: TArgs): Promise<TResult>;
+  shutdown(): void;
+}
+
+/** A subscription lifecycle event payload, as accepted by the events producer. */
+type SubscriptionEvent = { subscriptionId: string; [key: string]: unknown };
 
 @Injectable()
 export class SubscriptionService implements OnApplicationShutdown {
   private readonly logger = new Logger(SubscriptionService.name);
-  private findByIdBreaker;
-  private findByUserIdBreaker;
-  private createBreaker;
+
+  /** Every breaker the service owns, so shutdown can drain them all (OCP). */
+  private readonly breakers: Array<{ shutdown(): void }> = [];
+
+  private readonly findByIdBreaker: Breaker<
+    [string],
+    SubscriptionEntity | null
+  >;
+  private readonly findByUserIdBreaker: Breaker<[string], SubscriptionEntity[]>;
+  private readonly createBreaker: Breaker<
+    [CreateSubscriptionInput],
+    SubscriptionEntity
+  >;
 
   constructor(
     private readonly repository: SubscriptionRepository,
     private readonly breakerService: CircuitBreakerService,
     private readonly eventsProducer: SubscriptionEventsProducer,
   ) {
-    this.findByIdBreaker = this.breakerService.create(
-      (id: string) => this.repository.findById(id),
-      undefined,
-      (id: string) => {
-        throw new ServiceUnavailableException(
-          `Subscription service unavailable while fetching ${id}`,
-        );
-      },
+    this.findByIdBreaker = this.registerBreaker(
+      this.breakerService.create(
+        (id: string) => this.repository.findById(id),
+        undefined,
+        (id: string) =>
+          this.unavailable(
+            `Subscription service unavailable while fetching ${id}`,
+          ),
+      ),
     );
 
-    this.findByUserIdBreaker = this.breakerService.create(
-      (userId: string) => this.repository.findActiveByUserId(userId),
-      undefined,
-      (userId: string) => {
-        throw new ServiceUnavailableException(
-          `Subscription service unavailable while fetching active subscriptions for user ${userId}`,
-        );
-      },
+    this.findByUserIdBreaker = this.registerBreaker(
+      this.breakerService.create(
+        (userId: string) => this.repository.findActiveByUserId(userId),
+        undefined,
+        (userId: string) =>
+          this.unavailable(
+            `Subscription service unavailable while fetching active subscriptions for user ${userId}`,
+          ),
+      ),
     );
 
-    this.createBreaker = this.breakerService.create(
-      (input: CreateSubscriptionInput) =>
-        this.repository.createAndSave(SubscriptionMapper.toRequest(input)),
-      undefined,
-      () => {
-        throw new ServiceUnavailableException(
-          'Subscription service unavailable while creating subscription',
-        );
-      },
+    this.createBreaker = this.registerBreaker(
+      this.breakerService.create(
+        (input: CreateSubscriptionInput) =>
+          this.repository.createAndSave(SubscriptionMapper.toRequest(input)),
+        undefined,
+        () =>
+          this.unavailable(
+            'Subscription service unavailable while creating subscription',
+          ),
+      ),
     );
   }
 
@@ -79,39 +99,21 @@ export class SubscriptionService implements OnApplicationShutdown {
   }
 
   async create(input: CreateSubscriptionInput): Promise<SubscriptionEntity> {
-    const span = tracer.startSpan(
+    const result = await this.createBreaker.fire(input);
+    if (!result)
+      throw new Error(
+        'Failed to create subscription (circuit breaker fallback)',
+      );
+
+    await this.publish(
+      'subscription.created',
       'service.createSubscription',
-      undefined,
-      context.active(),
+      SubscriptionMapper.toCreatedEvent(result),
+      result.id,
+      { rethrow: true },
     );
 
-    try {
-      const result = await this.createBreaker.fire(input);
-      if (!result)
-        throw new Error(
-          'Failed to create subscription (circuit breaker fallback)',
-        );
-      await context.with(trace.setSpan(context.active(), span), async () => {
-        await this.eventsProducer.publishEvent('subscription.created', {
-          subscriptionId: result.id,
-          userId: result.userId,
-          planId: result.planId,
-          status: result.status,
-          currentPeriodStart: result.currentPeriodStart.toISOString(),
-          currentPeriodEnd: result.currentPeriodEnd.toISOString(),
-          cancelAtPeriodEnd: result.cancelAtPeriodEnd,
-          createdAt: result.createdAt.toISOString(),
-        });
-      });
-
-      this.logger.log(`Published subscription.created event for ${result.id}`);
-      return result;
-    } catch (err) {
-      this.logger.error('Failed to publish subscription.created event', err);
-      throw err;
-    } finally {
-      span.end();
-    }
+    return result;
   }
 
   async update(
@@ -120,38 +122,56 @@ export class SubscriptionService implements OnApplicationShutdown {
   ): Promise<SubscriptionEntity> {
     const updated = await this.repository.update(id, input);
 
-    try {
-      await this.eventsProducer.publishEvent('subscription.updated', {
-        subscriptionId: updated.id,
-        userId: updated.userId,
-        planId: updated.planId,
-        status: updated.status,
-        currentPeriodStart: updated.currentPeriodStart.toISOString(),
-        currentPeriodEnd: updated.currentPeriodEnd.toISOString(),
-        cancelAtPeriodEnd: updated.cancelAtPeriodEnd,
-        updatedAt: updated.updatedAt.toISOString(),
-      });
-      this.logger.log(`Published subscription.created event for ${updated.id}`);
-    } catch (err) {
-      this.logger.error('Failed to publish subscription.updated event', err);
-    }
+    await this.publish(
+      'subscription.updated',
+      'service.updateSubscription',
+      SubscriptionMapper.toUpdatedEvent(updated),
+      updated.id,
+      { rethrow: false },
+    );
+
     return updated;
   }
 
   async onApplicationShutdown(signal?: string) {
     this.logger.log(`Application shutdown signal received: ${signal}`);
 
+    for (const breaker of this.breakers) {
+      try {
+        breaker.shutdown();
+      } catch (err) {
+        this.logger.error('Error during circuit breaker shutdown', err);
+      }
+    }
+  }
+
+  private registerBreaker<TArgs extends unknown[], TResult>(
+    breaker: Breaker<TArgs, TResult>,
+  ): Breaker<TArgs, TResult> {
+    this.breakers.push(breaker);
+    return breaker;
+  }
+
+  private unavailable(message: string): never {
+    throw new ServiceUnavailableException(message);
+  }
+
+  /** Publishes a lifecycle event inside a traced span with uniform logging. */
+  private async publish(
+    topic: 'subscription.created' | 'subscription.updated',
+    spanName: string,
+    payload: SubscriptionEvent,
+    subscriptionId: string,
+    { rethrow }: { rethrow: boolean },
+  ): Promise<void> {
     try {
-      if (this.findByIdBreaker) {
-        this.findByIdBreaker.shutdown();
-        this.logger.log('findByIdBreaker shutdown completed');
-      }
-      if (this.createBreaker) {
-        this.createBreaker.shutdown();
-        this.logger.log('createBreaker shutdown completed');
-      }
+      await withSpan(spanName, () =>
+        this.eventsProducer.publishEvent(topic, payload),
+      );
+      this.logger.log(`Published ${topic} event for ${subscriptionId}`);
     } catch (err) {
-      this.logger.error('Error during circuit breaker shutdown', err);
+      this.logger.error(`Failed to publish ${topic} event`, err);
+      if (rethrow) throw err;
     }
   }
 }
