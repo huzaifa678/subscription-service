@@ -37,6 +37,7 @@ import { HealthController } from './controller/health.controller';
       autoSchemaFile: join(process.cwd(), 'src/schema.gql'),
       sortSchema: true,
       path: '/api/subscription',
+      introspection: process.env.APP_ENV === 'dev',
     }),
   ],
   providers: [WinstonLogger],
