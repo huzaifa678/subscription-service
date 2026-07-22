@@ -15,14 +15,11 @@
     "outDir": "./dist",
     "baseUrl": "./",
     "paths": {
-      "@model/*": ["src/model/*"],
-      "@mapper/*": ["src/mapper/*"],
-      "@service/*": ["src/service/*"],
-      "@resolvers/*": ["src/resolvers/*"],
-      "@controller/*": ["src/controller/*"],
+      "@domain/*": ["src/subscription/domain/*"],
+      "@application/*": ["src/subscription/application/*"],
+      "@infra/*": ["src/subscription/infrastructure/*"],
+      "@interface/*": ["src/subscription/interface/*"],
       "@pb/*": ["src/pb/*"],
-      "@repository/*": ["src/repository/*"],
-      "@events/*": ["src/events/*"],
       "@test/*": ["test/*"],
       "@lib/*": ["src/lib/*"],
       "@logger/*": ["src/logger/*"]
