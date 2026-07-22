@@ -1,33 +1,37 @@
 import { Resolver, Query, Mutation, Args, ID } from '@nestjs/graphql';
-import { SubscriptionEntity } from '@model/entities/subscription.entity';
-import { CreateSubscriptionInput } from '@model/dtos/create-subscription.dto';
-import { UpdateSubscriptionInput } from '@model/dtos/update-subscription.dto';
-import { SubscriptionService } from '@service/subscription.service';
+import { SubscriptionType } from '@interface/graphql/subscription.type';
+import { CreateSubscriptionInput } from '@application/dtos/create-subscription.dto';
+import { UpdateSubscriptionInput } from '@application/dtos/update-subscription.dto';
+import { GetSubscription } from '@application/use-cases/get-subscription.use-case';
+import { CreateSubscription } from '@application/use-cases/create-subscription.use-case';
+import { UpdateSubscription } from '@application/use-cases/update-subscription.use-case';
 import { withSpan } from '@lib/tracing';
 import { WinstonLogger } from '@logger/winston.logger';
 
-@Resolver(() => SubscriptionEntity)
+@Resolver(() => SubscriptionType)
 export class SubscriptionResolver {
   constructor(
-    private readonly service: SubscriptionService,
+    private readonly getSubscriptionUseCase: GetSubscription,
+    private readonly createSubscriptionUseCase: CreateSubscription,
+    private readonly updateSubscriptionUseCase: UpdateSubscription,
     private readonly logger: WinstonLogger,
   ) {}
 
-  @Query(() => SubscriptionEntity)
+  @Query(() => SubscriptionType)
   subscription(@Args('id', { type: () => ID }) id: string) {
     return this.trace(`findById id=${id}`, 'subscription.query', () =>
-      this.service.findById(id),
+      this.getSubscriptionUseCase.execute(id),
     );
   }
 
-  @Mutation(() => SubscriptionEntity)
+  @Mutation(() => SubscriptionType)
   createSubscription(@Args('input') input: CreateSubscriptionInput) {
     return this.trace('createSubscription', 'subscription.create', () =>
-      this.service.create(input),
+      this.createSubscriptionUseCase.execute(input),
     );
   }
 
-  @Mutation(() => SubscriptionEntity)
+  @Mutation(() => SubscriptionType)
   updateSubscription(
     @Args('id', { type: () => ID }) id: string,
     @Args('input') input: UpdateSubscriptionInput,
@@ -35,7 +39,7 @@ export class SubscriptionResolver {
     return this.trace(
       `updateSubscription id=${id}`,
       'subscription.update',
-      () => this.service.update(id, input),
+      () => this.updateSubscriptionUseCase.execute(id, input),
     );
   }
 
