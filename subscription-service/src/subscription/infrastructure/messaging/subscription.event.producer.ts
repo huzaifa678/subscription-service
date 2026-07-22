@@ -5,11 +5,16 @@ import { SchemaRegistry, SchemaType } from '@kafkajs/confluent-schema-registry';
 import * as fs from 'fs';
 import * as path from 'path';
 import { WinstonLogger } from '@logger/winston.logger';
-
-type SubscriptionEvent = { subscriptionId: string; [key: string]: unknown };
+import {
+  EventPublisherPort,
+  SubscriptionEvent,
+  SubscriptionEventTopic,
+} from '@application/ports/event-publisher.port';
 
 @Injectable()
-export class SubscriptionEventsProducer implements OnModuleInit {
+export class SubscriptionEventsProducer
+  implements EventPublisherPort, OnModuleInit
+{
   private kafkaProducer!: Producer;
   private registry!: SchemaRegistry;
   private schemaIds: Record<string, number> = {};
@@ -31,11 +36,11 @@ export class SubscriptionEventsProducer implements OnModuleInit {
 
     await this.registerSchema(
       'subscription.created',
-      '../schemas/subscription-created.avsc',
+      '../../../schemas/subscription-created.avsc',
     );
     await this.registerSchema(
       'subscription.updated',
-      '../schemas/subscription-updated.avsc',
+      '../../../schemas/subscription-updated.avsc',
     );
     this.logger.log('subscription-event-producer: onModuleInit completed');
   }
@@ -46,7 +51,7 @@ export class SubscriptionEventsProducer implements OnModuleInit {
     );
     const schemaPath = path.resolve(
       __dirname,
-      '../schemas',
+      '../../../schemas',
       path.basename(filePath),
     );
 
@@ -96,9 +101,9 @@ export class SubscriptionEventsProducer implements OnModuleInit {
   }
 
   async publishEvent(
-    topic: 'subscription.created' | 'subscription.updated',
+    topic: SubscriptionEventTopic,
     event: SubscriptionEvent,
-  ) {
+  ): Promise<void> {
     this.logger.log(
       `subscription-event-producer: publishEvent topic=${topic} subscriptionId=${event?.subscriptionId}`,
     );
