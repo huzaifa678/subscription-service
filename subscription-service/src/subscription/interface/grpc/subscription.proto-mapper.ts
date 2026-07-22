@@ -1,6 +1,6 @@
 import { create } from '@bufbuild/protobuf';
 import * as subscription_pb from '@pb/subscription/v1/subscription_pb';
-import { SubscriptionEntity } from '@model/entities/subscription.entity';
+import { Subscription } from '@domain/subscription';
 
 /** Converts a Date to a protobuf Timestamp-like `{ seconds, nanos }` value. */
 const toTimestamp = (date: Date) => ({
@@ -9,12 +9,12 @@ const toTimestamp = (date: Date) => ({
 });
 
 /**
- * Maps domain entities to their generated protobuf messages, keeping gRPC
+ * Maps a domain subscription to its generated protobuf message, keeping gRPC
  * wire-format concerns out of the controller (Single Responsibility).
  */
 export class SubscriptionProtoMapper {
   static toResponse(
-    sub: SubscriptionEntity,
+    sub: Subscription,
   ): subscription_pb.GetSubscriptionResponse {
     return create(subscription_pb.GetSubscriptionResponseSchema, {
       id: sub.id,
