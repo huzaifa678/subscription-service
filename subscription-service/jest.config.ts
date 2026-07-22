@@ -15,14 +15,11 @@ const config: Config.InitialOptions = {
   },
 
   moduleNameMapper: {
-    '^@model/(.*)$': '<rootDir>/src/model/$1',
-    '^@mapper/(.*)$': '<rootDir>/src/mapper/$1',
-    '^@service/(.*)$': '<rootDir>/src/service/$1',
-    '^@resolvers/(.*)$': '<rootDir>/src/resolvers/$1',
-    '^@controller/(.*)$': '<rootDir>/src/controller/$1',
+    '^@domain/(.*)$': '<rootDir>/src/subscription/domain/$1',
+    '^@application/(.*)$': '<rootDir>/src/subscription/application/$1',
+    '^@infra/(.*)$': '<rootDir>/src/subscription/infrastructure/$1',
+    '^@interface/(.*)$': '<rootDir>/src/subscription/interface/$1',
     '^@pb/(.*)$': '<rootDir>/src/pb/$1',
-    '^@repository/(.*)$': '<rootDir>/src/repository/$1',
-    '^@events/(.*)$': '<rootDir>/src/events/$1',
     '^@test/(.*)$': '<rootDir>/test/$1',
     '^@logger/(.*)$': '<rootDir>/src/logger/$1',
     '^@lib/(.*)$': '<rootDir>/src/lib/$1',
