@@ -6,9 +6,9 @@ import { Repository } from 'typeorm';
 import { Verifier } from '@pact-foundation/pact';
 import * as path from 'path';
 import { startPostgresContainer } from './utils/postgres-testcontainer';
-import { SubscriptionEntity } from '../src/model/entities/subscription.entity';
-import { SubscriptionStatus } from '../src/model/domain/subscription-status.enum';
-import { SubscriptionModule } from '../src/subscription.module';
+import { SubscriptionOrmEntity } from '@infra/persistence/subscription.orm-entity';
+import { SubscriptionStatus } from '@domain/subscription-status.enum';
+import { SubscriptionModule } from '../src/subscription/subscription.module';
 
 const GRPC_PORT = 50151;
 const PROTO_PATH = '/Users/smartboy/proto/subscription/v1/subscription.proto';
@@ -19,7 +19,7 @@ const USER_ID = '9f1c2d3e-7a8b-4c5d-9e0f-123456789abc';
 
 describe('Pact Provider Verification: subscription-service (gRPC)', () => {
   let app: INestApplication;
-  let subscriptionRepo: Repository<SubscriptionEntity>;
+  let subscriptionRepo: Repository<SubscriptionOrmEntity>;
 
   beforeAll(async () => {
     const pg = await startPostgresContainer();
@@ -33,10 +33,10 @@ describe('Pact Provider Verification: subscription-service (gRPC)', () => {
           username: pg.username,
           password: pg.password,
           database: pg.database,
-          entities: [SubscriptionEntity],
+          entities: [SubscriptionOrmEntity],
           synchronize: true,
         }),
-        TypeOrmModule.forFeature([SubscriptionEntity]),
+        TypeOrmModule.forFeature([SubscriptionOrmEntity]),
         SubscriptionModule,
       ],
     }).compile();
@@ -56,7 +56,7 @@ describe('Pact Provider Verification: subscription-service (gRPC)', () => {
     await app.startAllMicroservices();
     await app.init();
 
-    subscriptionRepo = moduleRef.get(getRepositoryToken(SubscriptionEntity));
+    subscriptionRepo = moduleRef.get(getRepositoryToken(SubscriptionOrmEntity));
   }, 120_000);
 
   afterAll(async () => {
