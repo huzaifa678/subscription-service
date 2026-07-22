@@ -10,33 +10,73 @@ A NestJS microservice that manages SaaS subscription lifecycle. It exposes a **G
 
 ## Architecture
 
+The service follows a **hexagonal (ports & adapters)** architecture organised as
+layered NestJS sub-modules under `src/subscription/`. The framework-free **domain**
+sits at the centre; **application** use-cases depend only on **ports** (interfaces);
+and **driving** adapters (GraphQL, gRPC) and **driven** adapters (TypeORM, Kafka)
+plug in at the edges. The dependency direction always points inward — infrastructure
+depends on the core, never the reverse.
+
 ```mermaid
-graph TD
-    A["Kafka<br/>subscription.created<br/>subscription.updated"] -->|Avro Events| B["SubscriptionService<br/>Port 8081"]
-    
-    B --> C["Controller Layer<br/>GraphQL API / gRPC / Health"]
-    
-    C --> D["Service Layer<br/>Business Logic & Circuit Breaker"]
-    
-    D --> E["Repository Layer<br/>Data Access"]
-    
-    E -->|TypeORM| F["PostgreSQL<br/>Subscription DB"]
-    
-    D -->|gRPC Server| H["gRPC Endpoint<br/>Port 50051"]
-    D -->|Publish Events| A
-    D -->|Trace & Log| I["OpenTelemetry + Winston<br/>Observability Stack"]
-    
-    H -->|Consumed by| J["Billing Service<br/>Service-to-Service"]
-    
-    style A fill:#FF6B6B,stroke:#333,color:#fff,stroke-width:2px
-    style B fill:#4ECDC4,stroke:#333,color:#fff,stroke-width:3px
-    style C fill:#FFA07A,stroke:#333,color:#fff,stroke-width:2px
-    style D fill:#FFD700,stroke:#333,color:#333,stroke-width:2px
-    style E fill:#98D8C8,stroke:#333,color:#333,stroke-width:2px
-    style F fill:#6C63FF,stroke:#333,color:#fff,stroke-width:2px
-    style H fill:#95E1D3,stroke:#333,color:#333,stroke-width:2px
-    style I fill:#FF8B94,stroke:#333,color:#fff,stroke-width:2px
-    style J fill:#FFE66D,stroke:#333,color:#333,stroke-width:2px
+graph LR
+    Clients["GraphQL Clients"]
+    Billing["Billing Service"]
+
+    subgraph Interface["interface/ · Driving Adapters"]
+        GQL["GraphQL Resolver<br/>/api/subscription :8081"]
+        GRPC["gRPC Controller<br/>:50051"]
+    end
+
+    subgraph Application["application/ · Use-Cases"]
+        UC["GetSubscription · GetUserActiveSubscriptions<br/>CreateSubscription · UpdateSubscription"]
+        CB["Circuit Breaker<br/>(Opossum)"]
+        PORTS{{"Ports<br/>SubscriptionRepositoryPort<br/>EventPublisherPort"}}
+    end
+
+    subgraph Domain["domain/ · Core"]
+        DOM["Subscription<br/>rich model + lifecycle rules"]
+    end
+
+    subgraph Infrastructure["infrastructure/ · Driven Adapters"]
+        REPO["TypeORM Repository"]
+        PROD["Kafka Avro Producer"]
+    end
+
+    PG[("PostgreSQL")]
+    KAFKA["Kafka +<br/>Schema Registry"]
+    OTEL["OpenTelemetry<br/>+ Winston"]
+
+    Clients -->|GraphQL| GQL
+    Billing -->|gRPC| GRPC
+
+    GQL --> UC
+    GRPC --> UC
+    UC --> DOM
+    UC -. guarded by .-> CB
+    UC --> PORTS
+
+    PORTS -. bound to .-> REPO
+    PORTS -. bound to .-> PROD
+
+    REPO -->|TypeORM| PG
+    PROD -->|Avro Events| KAFKA
+    UC -.->|trace + log| OTEL
+
+    style Domain fill:#FFF7D6,stroke:#333,color:#333
+    style Application fill:#E7F9F5,stroke:#333,color:#333
+    style Interface fill:#FFE8DC,stroke:#333,color:#333
+    style Infrastructure fill:#E9E6FF,stroke:#333,color:#333
+    style DOM fill:#FFD700,stroke:#333,color:#333,stroke-width:2px
+    style UC fill:#4ECDC4,stroke:#333,color:#fff,stroke-width:2px
+    style PORTS fill:#95E1D3,stroke:#333,color:#333,stroke-width:2px
+    style CB fill:#FFA07A,stroke:#333,color:#333,stroke-width:2px
+    style GQL fill:#FF8B94,stroke:#333,color:#fff,stroke-width:2px
+    style GRPC fill:#FF8B94,stroke:#333,color:#fff,stroke-width:2px
+    style REPO fill:#6C63FF,stroke:#333,color:#fff,stroke-width:2px
+    style PROD fill:#FF6B6B,stroke:#333,color:#fff,stroke-width:2px
+    style PG fill:#6C63FF,stroke:#333,color:#fff,stroke-width:2px
+    style KAFKA fill:#FF6B6B,stroke:#333,color:#fff,stroke-width:2px
+    style OTEL fill:#FFE66D,stroke:#333,color:#333,stroke-width:2px
 ```
 
 ## Tech Stack
@@ -60,34 +100,54 @@ graph TD
 - **GraphQL API** — create, update, and query subscriptions via `/api/subscription`
 - **gRPC server** on port `50051` — exposes subscription data to billing-service
 - **Kafka producer** — publishes `subscription.created` and `subscription.updated` events with Avro-encoded payloads to Confluent Schema Registry
-- **Circuit breaker** — wraps all repository calls with Opossum; falls back gracefully on failure
+- **Circuit breaker** — read and create use-cases wrap their repository calls with Opossum; falls back gracefully on failure
 - **OpenTelemetry** — distributed tracing exported via OTLP HTTP; spans created per service operation
 - **Database migrations** — TypeORM migrations managed via CLI
 - **Health endpoint** — `GET /healthz/live`
 
 ## Project Structure
 
+The subscription bounded context is organised as a hexagon under `src/subscription/`,
+with each layer wired as its own NestJS module (`ApplicationModule`,
+`InfrastructureModule`, `InterfaceModule`) composed by `SubscriptionModule`.
+
 ```
 subscription-service/
 ├── src/
-│   ├── controller/          # gRPC controller + health endpoint
-│   ├── service/             # Business logic + circuit breaker wiring
-│   ├── repository/          # TypeORM data access
-│   ├── resolvers/           # GraphQL resolvers
-│   ├── events/              # Kafka Avro event producer
-│   ├── model/
-│   │   ├── entities/        # TypeORM entities
-│   │   ├── dtos/            # Input/output DTOs
-│   │   └── domain/          # Domain types
-│   ├── schemas/             # Avro schemas (.avsc) + GraphQL schema
-│   ├── proto/               # Protobuf definition
-│   ├── pb/                  # Generated gRPC stubs
-│   ├── mapper/              # Entity ↔ DTO mapping
-│   ├── lib/                 # Shared logger
-│   ├── tracing.ts           # OpenTelemetry bootstrap
-│   └── main.ts              # Application entry point
-├── migrations/              # TypeORM migration files
-└── test/                    # Integration + e2e tests
+│   ├── subscription/                  # Subscription bounded context (the hexagon)
+│   │   ├── domain/                    # Framework-free core
+│   │   │   ├── subscription.ts        #   rich model: create/applyUpdate/cancel/renew
+│   │   │   ├── subscription-status.enum.ts
+│   │   │   └── subscription.errors.ts #   domain errors
+│   │   ├── application/               # Use-cases + ports (the inside)
+│   │   │   ├── use-cases/             #   Get / GetUserActive / Create / Update
+│   │   │   ├── ports/                 #   repository + event-publisher interfaces + tokens
+│   │   │   ├── dtos/                  #   use-case input contracts
+│   │   │   ├── subscription-event.publisher.ts
+│   │   │   ├── subscription.mapper.ts #   domain → event payloads
+│   │   │   ├── support/               #   circuit-breaker interface
+│   │   │   └── application.module.ts
+│   │   ├── infrastructure/            # Driven adapters (implement the ports)
+│   │   │   ├── persistence/           #   TypeORM entity, repository, ORM↔domain mapper
+│   │   │   ├── messaging/             #   Kafka Avro event producer
+│   │   │   ├── resilience/            #   Opossum circuit breaker
+│   │   │   └── infrastructure.module.ts
+│   │   ├── interface/                 # Driving adapters
+│   │   │   ├── graphql/               #   resolver + GraphQL type
+│   │   │   ├── grpc/                  #   controller + proto mapper
+│   │   │   └── interface.module.ts
+│   │   └── subscription.module.ts     # Composition root
+│   ├── controller/                    # App-level health endpoint
+│   ├── logger/                        # Winston logger
+│   ├── schemas/                       # Avro schemas (.avsc) + GraphQL schema
+│   ├── pb/                            # Generated gRPC stubs
+│   ├── lib/                           # Shared logger + tracing helpers
+│   ├── logger.module.ts              # Logger module
+│   ├── app.module.ts                 # Root module
+│   ├── tracing.ts                    # OpenTelemetry bootstrap
+│   └── main.ts                       # Application entry point
+├── migrations/                        # TypeORM migration files
+└── test/                              # Integration, wiring, pact + e2e tests
 ```
 
 ## Getting Started
@@ -164,17 +224,20 @@ Playground available at `http://localhost:8081/api/subscription` (dev mode).
 ```graphql
 mutation {
   createSubscription(input: {
-    userId: "user-123"
+    userId: "3f0e4f7a-1c2b-4d5e-8a90-1234567890ab"
     planId: "plan-pro"
-    currentPeriodStart: "2025-01-01T00:00:00Z"
-    currentPeriodEnd: "2025-02-01T00:00:00Z"
   }) {
     id
     status
     planId
+    currentPeriodStart
+    currentPeriodEnd
   }
 }
 ```
+
+> `status` defaults to `ACTIVE` and the 30-day billing period
+> (`currentPeriodStart` / `currentPeriodEnd`) is computed by the domain model.
 
 ### gRPC
 
