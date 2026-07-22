@@ -1,6 +1,6 @@
 import { InputType, Field } from '@nestjs/graphql';
 import { IsOptional, IsEnum, IsBoolean } from 'class-validator';
-import { SubscriptionStatus } from '../domain/subscription-status.enum';
+import { SubscriptionStatus } from '@domain/subscription-status.enum';
 
 @InputType()
 export class UpdateSubscriptionInput {
