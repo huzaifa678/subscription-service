@@ -1,20 +1,23 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { SubscriptionService } from '@service/subscription.service';
-import { CircuitBreakerService } from '@service/circuit-breaker.service';
-import { SubscriptionEventsProducer } from '@events/subscription.event.producer';
+import { CircuitBreakerService } from '@infra/resilience/circuit-breaker.service';
+import { SubscriptionEventPublisher } from '@application/subscription-event.publisher';
+import { CreateSubscription } from '@application/use-cases/create-subscription.use-case';
 import { startPostgresContainer } from '@test/utils/postgres-testcontainer';
 import { StartedTestContainer } from 'testcontainers';
 import { v4 as uuidv4 } from 'uuid';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { SubscriptionEntity } from '@model/entities/subscription.entity';
-import { SubscriptionRepository } from '@repository/subscription.repository';
+import { SubscriptionOrmEntity } from '@infra/persistence/subscription.orm-entity';
+import { SubscriptionRepository } from '@infra/persistence/subscription.repository';
+import { SUBSCRIPTION_REPOSITORY } from '@application/ports/subscription-repository.port';
+import { EVENT_PUBLISHER } from '@application/ports/event-publisher.port';
 import { WinstonLogger } from '@logger/winston.logger';
 import { mockLogger } from './mock-logger';
 
-describe('SubscriptionService (Integration)', () => {
-  let service: SubscriptionService;
+describe('CreateSubscription (Integration)', () => {
+  let createUseCase: CreateSubscription;
   let container: StartedTestContainer | undefined;
 
+  // Breaker mock that just runs the wrapped action directly.
   const mockBreakerService = {
     create: (fn: any) => ({
       fire: fn,
@@ -39,21 +42,27 @@ describe('SubscriptionService (Integration)', () => {
           username: pg.username,
           password: pg.password,
           database: pg.database,
-          entities: [SubscriptionEntity],
+          entities: [SubscriptionOrmEntity],
           synchronize: true,
         }),
-        TypeOrmModule.forFeature([SubscriptionEntity]),
+        TypeOrmModule.forFeature([SubscriptionOrmEntity]),
       ],
       providers: [
-        SubscriptionService,
+        CreateSubscription,
+        SubscriptionEventPublisher,
         SubscriptionRepository,
         { provide: CircuitBreakerService, useValue: mockBreakerService },
-        { provide: SubscriptionEventsProducer, useValue: mockEventsProducer },
         { provide: WinstonLogger, useValue: mockLogger },
+        // Bind driven ports: repository -> real adapter, publisher -> mock.
+        {
+          provide: SUBSCRIPTION_REPOSITORY,
+          useExisting: SubscriptionRepository,
+        },
+        { provide: EVENT_PUBLISHER, useValue: mockEventsProducer },
       ],
     }).compile();
 
-    service = module.get(SubscriptionService);
+    createUseCase = module.get(CreateSubscription);
   });
 
   afterAll(async () => {
@@ -66,7 +75,7 @@ describe('SubscriptionService (Integration)', () => {
       planId: uuidv4(),
     };
 
-    const result = await service.create(input as any);
+    const result = await createUseCase.execute(input as any);
 
     expect(result.id).toBeDefined();
     expect(mockEventsProducer.publishEvent).toHaveBeenCalledWith(
