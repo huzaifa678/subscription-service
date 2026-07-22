@@ -3,11 +3,10 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { GraphQLModule } from '@nestjs/graphql';
 import { join } from 'path';
-import { SubscriptionModule } from './subscription.module';
-import { SubscriptionEntity } from '@model/entities/subscription.entity';
+import { SubscriptionModule } from './subscription/subscription.module';
+import { SubscriptionOrmEntity } from '@infra/persistence/subscription.orm-entity';
 import { ApolloDriver, ApolloDriverConfig } from '@nestjs/apollo';
-import { KafkaModule } from './kafka.module';
-import { WinstonLogger } from '@logger/winston.logger';
+import { LoggerModule } from './logger.module';
 import { HealthController } from './controller/health.controller';
 
 @Module({
@@ -19,7 +18,7 @@ import { HealthController } from './controller/health.controller';
       username: process.env.POSTGRES_USER,
       password: process.env.POSTGRES_PASSWORD,
       database: process.env.POSTGRES_DB,
-      entities: [SubscriptionEntity],
+      entities: [SubscriptionOrmEntity],
       synchronize: false,
       logging: true,
       extra: {
@@ -29,9 +28,8 @@ import { HealthController } from './controller/health.controller';
         connectionTimeoutMillis: 2000,
       },
     }),
-    TypeOrmModule.forFeature([SubscriptionEntity]),
+    LoggerModule,
     SubscriptionModule,
-    KafkaModule,
     GraphQLModule.forRoot<ApolloDriverConfig>({
       driver: ApolloDriver,
       autoSchemaFile: join(process.cwd(), 'src/schema.gql'),
@@ -40,8 +38,6 @@ import { HealthController } from './controller/health.controller';
       introspection: process.env.APP_ENV === 'dev',
     }),
   ],
-  providers: [WinstonLogger],
-  exports: [WinstonLogger],
   controllers: [HealthController],
 })
 export class AppModule {}
