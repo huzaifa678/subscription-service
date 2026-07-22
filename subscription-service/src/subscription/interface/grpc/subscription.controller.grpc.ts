@@ -1,16 +1,18 @@
 import { Controller } from '@nestjs/common';
 import { GrpcMethod } from '@nestjs/microservices';
-import { SubscriptionService } from '@service/subscription.service';
+import { GetSubscription } from '@application/use-cases/get-subscription.use-case';
+import { GetUserActiveSubscriptions } from '@application/use-cases/get-user-active-subscriptions.use-case';
 import * as subscription_pb from '@pb/subscription/v1/subscription_pb';
 import { create } from '@bufbuild/protobuf';
 import { withSpan } from '@lib/tracing';
-import { SubscriptionProtoMapper } from '@mapper/subscription.proto-mapper';
+import { SubscriptionProtoMapper } from '@interface/grpc/subscription.proto-mapper';
 import { WinstonLogger } from '@logger/winston.logger';
 
 @Controller()
 export class SubscriptionGrpcController {
   constructor(
-    private readonly subscriptionService: SubscriptionService,
+    private readonly getSubscriptionUseCase: GetSubscription,
+    private readonly getUserActiveSubscriptionsUseCase: GetUserActiveSubscriptions,
     private readonly logger: WinstonLogger,
   ) {}
 
@@ -24,7 +26,7 @@ export class SubscriptionGrpcController {
 
     try {
       return await withSpan('grpc.GetSubscription', async () => {
-        const sub = await this.subscriptionService.findById(
+        const sub = await this.getSubscriptionUseCase.execute(
           data.subscriptionId,
         );
 
@@ -60,7 +62,7 @@ export class SubscriptionGrpcController {
 
     try {
       const subs = await withSpan('grpc.GetUserActiveSubscriptions', () =>
-        this.subscriptionService.findActiveByUserId(data.userId),
+        this.getUserActiveSubscriptionsUseCase.execute(data.userId),
       );
 
       this.logger.log(
