@@ -26,6 +26,10 @@ export class SubscriptionEventsProducer
     const kafka = new Kafka({
       brokers: [process.env.KAFKA_BROKER || 'localhost:9092'],
       clientId: process.env.KAFKA_CLIENT_ID || 'subscription-service',
+      retry: {
+        retries: Number(process.env.KAFKA_PRODUCER_RETRIES ?? 5),
+        initialRetryTime: 300,
+      },
     });
     this.kafkaProducer = kafka.producer();
     await this.kafkaProducer.connect();
@@ -118,10 +122,21 @@ export class SubscriptionEventsProducer
     }
 
     const encoded = await this.registry.encode(schemaId, event);
-    await this.kafkaProducer.send({
-      topic,
-      messages: [{ key: event.subscriptionId, value: encoded }],
-    });
+    try {
+      await this.kafkaProducer.send({
+        topic,
+        messages: [{ key: event.subscriptionId, value: encoded }],
+      });
+    } catch (e: unknown) {
+      // The send failed after kafkajs exhausted its retries; the message never left
+      // the app so there is nothing to dead-letter. Surface it to Loki via the OTLP
+      // logger for alerting/replay and rethrow for the caller to decide.
+      this.logger.error(
+        `subscription-event-producer: publishEvent failed topic=${topic} subscriptionId=${event?.subscriptionId}`,
+        e,
+      );
+      throw e;
+    }
     this.logger.log(
       `subscription-event-producer: publishEvent succeeded topic=${topic} subscriptionId=${event?.subscriptionId}`,
     );
