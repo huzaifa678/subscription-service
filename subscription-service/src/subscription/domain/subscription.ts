@@ -15,6 +15,8 @@ export interface SubscriptionProps {
   cancelAtPeriodEnd: boolean;
   createdAt: Date;
   updatedAt: Date;
+  /** Optimistic-lock version carried through the load-modify-save cycle. */
+  version: number;
 }
 
 /** Data required to open a brand-new subscription. */
@@ -40,6 +42,7 @@ export class Subscription {
   readonly cancelAtPeriodEnd: boolean;
   readonly createdAt: Date;
   readonly updatedAt: Date;
+  readonly version: number;
 
   private constructor(props: SubscriptionProps) {
     this.id = props.id;
@@ -51,6 +54,7 @@ export class Subscription {
     this.cancelAtPeriodEnd = props.cancelAtPeriodEnd;
     this.createdAt = props.createdAt;
     this.updatedAt = props.updatedAt;
+    this.version = props.version;
   }
 
   /** Opens a new ACTIVE subscription with a fresh 30-day billing period. */
@@ -66,6 +70,8 @@ export class Subscription {
       cancelAtPeriodEnd: false,
       createdAt: now,
       updatedAt: now,
+      // Matches TypeORM's initial @VersionColumn value on insert.
+      version: 1,
     });
   }
 
@@ -86,6 +92,7 @@ export class Subscription {
       cancelAtPeriodEnd: this.cancelAtPeriodEnd,
       createdAt: this.createdAt,
       updatedAt: this.updatedAt,
+      version: this.version,
     };
   }
 

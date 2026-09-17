@@ -26,3 +26,13 @@ export class SubscriptionCreationError extends SubscriptionDomainError {
     super('Failed to create subscription');
   }
 }
+
+/**
+ * Raised when concurrent writers kept moving the optimistic-lock version and the
+ * load-modify-save retries were exhausted. Maps to a conflict at the edges.
+ */
+export class SubscriptionConcurrencyError extends SubscriptionDomainError {
+  constructor(readonly id: string) {
+    super(`Subscription ${id} was modified concurrently; please retry`);
+  }
+}
