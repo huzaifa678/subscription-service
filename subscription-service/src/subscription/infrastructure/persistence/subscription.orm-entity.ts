@@ -5,6 +5,7 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   Index,
+  VersionColumn,
 } from 'typeorm';
 import { SubscriptionStatus } from '@domain/subscription-status.enum';
 
@@ -50,4 +51,13 @@ export class SubscriptionOrmEntity {
 
   @UpdateDateColumn({ type: 'timestamptz' })
   updatedAt!: Date;
+
+  /**
+   * Optimistic-lock version. TypeORM increments it on every update and adds a
+   * `WHERE version = :loaded` guard, throwing OptimisticLockVersionMismatchError
+   * when a concurrent write moved it on — preventing lost updates on the
+   * load-modify-save path (e.g. two concurrent status/cancel changes).
+   */
+  @VersionColumn()
+  version!: number;
 }

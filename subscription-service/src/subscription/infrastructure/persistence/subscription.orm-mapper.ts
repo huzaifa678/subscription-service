@@ -17,6 +17,7 @@ export class SubscriptionOrmMapper {
       cancelAtPeriodEnd: row.cancelAtPeriodEnd,
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
+      version: row.version,
     });
   }
 
