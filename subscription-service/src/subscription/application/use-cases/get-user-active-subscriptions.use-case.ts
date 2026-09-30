@@ -6,23 +6,28 @@ import {
 } from '@nestjs/common';
 import { Subscription } from '@domain/subscription';
 import { NoActiveSubscriptionsError } from '@domain/subscription.errors';
-import { SUBSCRIPTION_REPOSITORY } from '@application/ports/subscription-repository.port';
-import type { SubscriptionRepositoryPort } from '@application/ports/subscription-repository.port';
+import { SUBSCRIPTION_READ_MODEL } from '@application/ports/subscription-read-model.port';
+import type { SubscriptionReadModelPort } from '@application/ports/subscription-read-model.port';
 import { CircuitBreakerService } from '@infra/resilience/circuit-breaker.service';
 import type { Breaker } from '@application/support/breaker';
 
-/** Use-case: list a user's active subscriptions, guarded by a circuit breaker. */
+/**
+ * Use-case: list a user's active subscriptions, guarded by a circuit breaker.
+ *
+ * Reads the CQRS projection through {@link SubscriptionReadModelPort} — no event
+ * replay on the query path.
+ */
 @Injectable()
 export class GetUserActiveSubscriptions implements OnApplicationShutdown {
   private readonly breaker: Breaker<[string], Subscription[]>;
 
   constructor(
-    @Inject(SUBSCRIPTION_REPOSITORY)
-    private readonly repository: SubscriptionRepositoryPort,
+    @Inject(SUBSCRIPTION_READ_MODEL)
+    private readonly readModel: SubscriptionReadModelPort,
     breakerService: CircuitBreakerService,
   ) {
     this.breaker = breakerService.create(
-      (userId: string) => this.repository.findActiveByUserId(userId),
+      (userId: string) => this.readModel.findActiveByUserId(userId),
       undefined,
       (userId: string) => {
         throw new ServiceUnavailableException(

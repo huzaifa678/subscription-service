@@ -10,12 +10,15 @@ import { SubscriptionCreationError } from '@domain/subscription.errors';
 import { SUBSCRIPTION_REPOSITORY } from '@application/ports/subscription-repository.port';
 import type { SubscriptionRepositoryPort } from '@application/ports/subscription-repository.port';
 import { CircuitBreakerService } from '@infra/resilience/circuit-breaker.service';
-import { SubscriptionEventPublisher } from '@application/subscription-event.publisher';
 import type { Breaker } from '@application/support/breaker';
 
 /**
- * Use-case: open a new subscription (guarded by a circuit breaker) and publish
- * the `subscription.created` event.
+ * Use-case: open a new subscription (guarded by a circuit breaker).
+ *
+ * The `subscription.created` event is raised by the aggregate and appended to the
+ * event store by the repository; it reaches Kafka out of band via the
+ * transactional-outbox relay, so this use-case no longer publishes directly (no
+ * persist-then-publish dual write).
  */
 @Injectable()
 export class CreateSubscription implements OnApplicationShutdown {
@@ -25,7 +28,6 @@ export class CreateSubscription implements OnApplicationShutdown {
     @Inject(SUBSCRIPTION_REPOSITORY)
     private readonly repository: SubscriptionRepositoryPort,
     breakerService: CircuitBreakerService,
-    private readonly events: SubscriptionEventPublisher,
   ) {
     this.breaker = breakerService.create(
       (input: CreateSubscriptionInput) =>
@@ -42,8 +44,6 @@ export class CreateSubscription implements OnApplicationShutdown {
   async execute(input: CreateSubscriptionInput): Promise<Subscription> {
     const result = await this.breaker.fire(input);
     if (!result) throw new SubscriptionCreationError();
-
-    await this.events.publishCreated(result);
     return result;
   }
 
