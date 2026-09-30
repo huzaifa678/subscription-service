@@ -1,19 +1,18 @@
-import {
-  Entity,
-  PrimaryGeneratedColumn,
-  Column,
-  CreateDateColumn,
-  UpdateDateColumn,
-  Index,
-  VersionColumn,
-} from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, Index } from 'typeorm';
 import { SubscriptionStatus } from '@domain/subscription-status.enum';
 
 /**
  * Driven-side persistence model — the TypeORM row shape for `subscriptions`.
  *
+ * This table is now the **CQRS read-model projection**: the event store is the
+ * source of truth, and the event-sourced repository upserts this row (verbatim
+ * from the aggregate) in the same transaction as the event append. Consequently
+ * `version` / `createdAt` / `updatedAt` mirror the aggregate's own values rather
+ * than being TypeORM-managed — optimistic concurrency lives in the event store's
+ * unique `(aggregate_id, sequence)`, not in a `@VersionColumn` here.
+ *
  * Carries ONLY persistence concerns (no GraphQL, no domain behavior). The
- * repository adapter maps this to/from the domain {@link Subscription}.
+ * projection adapter maps this to/from the domain {@link Subscription}.
  */
 @Entity({ name: 'subscriptions' })
 @Index(['userId'])
@@ -46,18 +45,18 @@ export class SubscriptionOrmEntity {
   @Column({ type: 'boolean', default: false })
   cancelAtPeriodEnd!: boolean;
 
-  @CreateDateColumn({ type: 'timestamptz' })
+  @Column({ type: 'timestamptz' })
   createdAt!: Date;
 
-  @UpdateDateColumn({ type: 'timestamptz' })
+  @Column({ type: 'timestamptz' })
   updatedAt!: Date;
 
   /**
-   * Optimistic-lock version. TypeORM increments it on every update and adds a
-   * `WHERE version = :loaded` guard, throwing OptimisticLockVersionMismatchError
-   * when a concurrent write moved it on — preventing lost updates on the
-   * load-modify-save path (e.g. two concurrent status/cancel changes).
+   * Aggregate version, mirrored from the event stream (event count). Plain column
+   * — not a `@VersionColumn` — because the projection is written by upsert, not by
+   * TypeORM's optimistic-lock save path; concurrency is enforced upstream in the
+   * event store.
    */
-  @VersionColumn()
+  @Column({ type: 'int', default: 1 })
   version!: number;
 }
