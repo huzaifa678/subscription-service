@@ -2,6 +2,8 @@ import 'reflect-metadata';
 import 'dotenv/config';
 import { DataSource } from 'typeorm';
 import { SubscriptionOrmEntity } from '@infra/persistence/subscription.orm-entity';
+import { SubscriptionEventOrmEntity } from '@infra/persistence/subscription-event.orm-entity';
+import { SubscriptionSnapshotOrmEntity } from '@infra/persistence/subscription-snapshot.orm-entity';
 
 export const AppDataSource = new DataSource({
   type: 'postgres',
@@ -10,7 +12,11 @@ export const AppDataSource = new DataSource({
   username: process.env.POSTGRES_USER,
   password: process.env.POSTGRES_PASSWORD,
   database: process.env.POSTGRES_DB,
-  entities: [SubscriptionOrmEntity],
+  entities: [
+    SubscriptionOrmEntity,
+    SubscriptionEventOrmEntity,
+    SubscriptionSnapshotOrmEntity,
+  ],
   migrations: [__dirname + '/migrations/*{.ts,.js}'],
   synchronize: false,
 });

@@ -5,6 +5,8 @@ import { GraphQLModule } from '@nestjs/graphql';
 import { join } from 'path';
 import { SubscriptionModule } from './subscription/subscription.module';
 import { SubscriptionOrmEntity } from '@infra/persistence/subscription.orm-entity';
+import { SubscriptionEventOrmEntity } from '@infra/persistence/subscription-event.orm-entity';
+import { SubscriptionSnapshotOrmEntity } from '@infra/persistence/subscription-snapshot.orm-entity';
 import { ApolloDriver, ApolloDriverConfig } from '@nestjs/apollo';
 import { LoggerModule } from './logger.module';
 import { HealthController } from './controller/health.controller';
@@ -18,7 +20,11 @@ import { HealthController } from './controller/health.controller';
       username: process.env.POSTGRES_USER,
       password: process.env.POSTGRES_PASSWORD,
       database: process.env.POSTGRES_DB,
-      entities: [SubscriptionOrmEntity],
+      entities: [
+        SubscriptionOrmEntity,
+        SubscriptionEventOrmEntity,
+        SubscriptionSnapshotOrmEntity,
+      ],
       synchronize: false,
       logging: true,
       extra: {
