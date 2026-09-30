@@ -30,15 +30,18 @@ graph LR
     subgraph Application["application/ · Use-Cases"]
         UC["GetSubscription · GetUserActiveSubscriptions<br/>CreateSubscription · UpdateSubscription"]
         CB["Circuit Breaker<br/>(Opossum)"]
-        PORTS{{"Ports<br/>SubscriptionRepositoryPort<br/>EventPublisherPort"}}
+        PORTS{{"Ports<br/>RepositoryPort · ReadModelPort<br/>EventStorePort · SnapshotStorePort<br/>ProjectionPort · EventPublisherPort"}}
     end
 
     subgraph Domain["domain/ · Core"]
-        DOM["Subscription<br/>rich model + lifecycle rules"]
+        DOM["Subscription (event-sourced)<br/>raises events + lifecycle rules"]
     end
 
     subgraph Infrastructure["infrastructure/ · Driven Adapters"]
-        REPO["TypeORM Repository"]
+        ESREPO["Event-Sourced Repository"]
+        ESTORE["Event Store + Snapshots"]
+        PROJ["Projection / Read Model<br/>TypeORM"]
+        RELAY["Outbox Relay<br/>setInterval → Avro"]
         PROD["Kafka Avro Producer"]
     end
 
@@ -55,10 +58,16 @@ graph LR
     UC -. guarded by .-> CB
     UC --> PORTS
 
-    PORTS -. bound to .-> REPO
+    PORTS -. bound to .-> ESREPO
+    PORTS -. bound to .-> PROJ
     PORTS -. bound to .-> PROD
 
-    REPO -->|TypeORM| PG
+    ESREPO --> ESTORE
+    ESREPO --> PROJ
+    ESTORE -->|events + snapshots| PG
+    PROJ -->|CQRS read model| PG
+    RELAY -->|polls unpublished| ESTORE
+    RELAY --> PROD
     PROD -->|Avro Events| KAFKA
     UC -.->|trace + log| OTEL
 
@@ -72,12 +81,71 @@ graph LR
     style CB fill:#FFA07A,stroke:#333,color:#333,stroke-width:2px
     style GQL fill:#FF8B94,stroke:#333,color:#fff,stroke-width:2px
     style GRPC fill:#FF8B94,stroke:#333,color:#fff,stroke-width:2px
-    style REPO fill:#6C63FF,stroke:#333,color:#fff,stroke-width:2px
+    style ESREPO fill:#6C63FF,stroke:#333,color:#fff,stroke-width:2px
+    style ESTORE fill:#6C63FF,stroke:#333,color:#fff,stroke-width:2px
+    style PROJ fill:#95E1D3,stroke:#333,color:#333,stroke-width:2px
+    style RELAY fill:#FFA07A,stroke:#333,color:#333,stroke-width:2px
     style PROD fill:#FF6B6B,stroke:#333,color:#fff,stroke-width:2px
     style PG fill:#6C63FF,stroke:#333,color:#fff,stroke-width:2px
     style KAFKA fill:#FF6B6B,stroke:#333,color:#fff,stroke-width:2px
     style OTEL fill:#FFE66D,stroke:#333,color:#333,stroke-width:2px
 ```
+
+### Event Sourcing (Subscription)
+
+The `Subscription` aggregate is **event-sourced** — its state is the fold of an
+append-only event stream rather than a mutable row:
+
+- **Event store as source of truth.** Lifecycle changes raise typed events
+  (`subscription.created`, `status-changed`, `cancellation-scheduled`, `canceled`,
+  `renewed`, `updated`) appended to `subscription_event_store` (discriminated by
+  `aggregate_type`). The store assigns each event its per-aggregate `sequence`; the
+  unique `(aggregate_type, aggregate_id, sequence)` constraint is the
+  **optimistic-concurrency** guard, replacing the old TypeORM `@VersionColumn`.
+- **Snapshots** every _N_ events (`SUBSCRIPTION_SNAPSHOT_INTERVAL`, default 50)
+  bound replay length.
+- **CQRS read model.** The `subscriptions` table is now a **projection**, upserted
+  in the same transaction as the append. Query use-cases read the projection and
+  never replay events.
+- **Transactional-outbox relay.** A lightweight `setInterval` poller
+  (`SubscriptionEventRelay`) drains unpublished events to Kafka as Avro, marking
+  them published only after the broker acks — removing the previous
+  persist-then-publish dual write (where a failed publish on update was silently
+  swallowed). The six granular events collapse onto the two existing topics
+  (`subscription.created` / `subscription.updated`), so **downstream consumers such
+  as billing are unaffected**. Each message is built from the aggregate state folded
+  up to that event, so it reflects the world as of when the event happened.
+
+```mermaid
+flowchart TD
+    CMD["Command<br/>create · update · cancel · renew"] --> AGG["Subscription aggregate<br/>raises event · version++"]
+    AGG -->|pending events| SAVE["EventSourcedSubscriptionRepository.save<br/>single transaction"]
+
+    SAVE -->|1 · append @ expected version| ES[("subscription_event_store<br/>append-only · unique aggregate,seq")]
+    SAVE -->|2 · upsert| PROJ[("subscriptions projection<br/>CQRS read model")]
+    SAVE -->|3 · boundary check| CHK{"crossed every-N<br/>snapshot boundary?"}
+    CHK -->|yes| SNAP[("subscription_snapshot")]
+    CHK -->|no| NOOP(["no snapshot"])
+
+    LOAD["findById"] -->|newest snapshot| SNAP
+    LOAD -->|events after snapshot version| ES
+    SNAP --> FOLD["replay tail onto snapshot<br/>→ current Subscription"]
+    ES --> FOLD
+
+    RELAY["SubscriptionEventRelay<br/>setInterval"] -->|poll unpublished| ES
+    RELAY -->|fold to state, publish Avro, mark published| KAFKA["Kafka · Schema Registry<br/>subscription.created / .updated"]
+
+    QUERY["Query use-cases"] -->|reads, never replays| PROJ
+
+    style ES fill:#6C63FF,stroke:#333,color:#fff
+    style SNAP fill:#FFA07A,stroke:#333,color:#333
+    style PROJ fill:#95E1D3,stroke:#333,color:#333
+    style KAFKA fill:#FF6B6B,stroke:#333,color:#fff
+    style CHK fill:#FFE66D,stroke:#333,color:#333
+```
+
+Schema for `subscription_event_store` / `subscription_snapshot` ships as TypeORM
+migrations (`migrations/`), run via `pnpm run run-migrations`.
 
 ## Tech Stack
 
@@ -176,6 +244,12 @@ DB_POOL_MIN=5
 KAFKA_BROKERS=localhost:9092
 SCHEMA_REGISTRY_URL=http://localhost:9094
 OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318
+
+# Event sourcing
+SUBSCRIPTION_SNAPSHOT_INTERVAL=50
+SUBSCRIPTION_EVENT_RELAY_INTERVAL_MS=1000
+SUBSCRIPTION_EVENT_RELAY_BATCH=100
+# SUBSCRIPTION_EVENT_RELAY_ENABLED=false   # disable the outbox relay (e.g. in tests)
 ```
 
 ### Install & Run
@@ -247,10 +321,10 @@ The service implements the `SubscriptionService` defined in `src/proto/subscript
 
 | Topic | Event | Trigger |
 |---|---|---|
-| `subscription.created` | `SubscriptionCreatedEvent` | New subscription created |
-| `subscription.updated` | `SubscriptionUpdatedEvent` | Subscription plan/status changed |
+| `subscription.created` | `SubscriptionCreated` | New subscription created |
+| `subscription.updated` | `SubscriptionUpdated` | Any subsequent lifecycle change (status, cancel, renew) |
 
-Payloads are Avro-encoded. Schemas are registered in Confluent Schema Registry and stored in `src/schemas/`.
+Payloads are Avro-encoded. Schemas are registered in Confluent Schema Registry and stored in `src/schemas/`. Events are published by the **transactional-outbox relay** draining `subscription_event_store` (see [Event Sourcing](#event-sourcing-subscription)) — not directly from the use-cases — so publishing can no longer be lost by a failed post-commit send. The granular domain events map onto these two topics, so the contract downstream consumers (e.g. billing) depend on is unchanged.
 
 ## Docker
 

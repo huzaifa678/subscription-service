@@ -1,17 +1,21 @@
 import { Subscription } from '@domain/subscription';
 
 /**
- * Driven port: persistence for subscriptions.
+ * Driven port: the command-side (write) repository for subscriptions, backed by
+ * the event store.
  *
- * The application core depends on this interface, never on a concrete
- * database adapter. The TypeORM adapter (`SubscriptionRepository`) implements
- * it and is bound to {@link SUBSCRIPTION_REPOSITORY} in the composition root.
- * It speaks the framework-free domain {@link Subscription} in both directions.
+ * The application core depends on this interface, never on a concrete database
+ * adapter. The event-sourced adapter (`EventSourcedSubscriptionRepository`)
+ * implements it and is bound to {@link SUBSCRIPTION_REPOSITORY} in the
+ * composition root. Reads for the query side go through
+ * `SubscriptionReadModelPort` instead; `findById` here rebuilds the aggregate
+ * (with its version) from the store to feed load-modify-save command flows.
  */
 export interface SubscriptionRepositoryPort {
+  /** Rebuild an aggregate from its snapshot + event tail, or null if unknown. */
   findById(id: string): Promise<Subscription | null>;
-  findActiveByUserId(userId: string): Promise<Subscription[]>;
-  /** Inserts or updates a subscription aggregate, returning the stored state. */
+
+  /** Append the aggregate's pending events, project the read model, snapshot. */
   save(subscription: Subscription): Promise<Subscription>;
 }
 
