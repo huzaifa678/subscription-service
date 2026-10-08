@@ -5,9 +5,7 @@ import { MigrationInterface, QueryRunner } from 'typeorm';
  * aggregate (the newest snapshot); loading it plus the events with a greater
  * `sequence` rebuilds the aggregate without replaying the whole stream.
  */
-export class CreateSubscriptionSnapshot1780000000001
-  implements MigrationInterface
-{
+export class CreateSubscriptionSnapshot1780000000001 implements MigrationInterface {
   name = 'CreateSubscriptionSnapshot1780000000001';
 
   public async up(queryRunner: QueryRunner): Promise<void> {

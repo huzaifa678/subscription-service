@@ -5,9 +5,7 @@ import { MigrationInterface, QueryRunner } from 'typeorm';
  * SubscriptionOrmEntity. Existing rows default to 1 (matching the initial value
  * TypeORM assigns on insert).
  */
-export class AddSubscriptionVersionColumn1777400000000
-  implements MigrationInterface
-{
+export class AddSubscriptionVersionColumn1777400000000 implements MigrationInterface {
   name = 'AddSubscriptionVersionColumn1777400000000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {

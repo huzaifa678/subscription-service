@@ -7,9 +7,7 @@ import { MigrationInterface, QueryRunner } from 'typeorm';
  * unique `(aggregate_type, aggregate_id, sequence)` index is the optimistic-
  * concurrency guard; the partial index on unpublished rows backs the relay poll.
  */
-export class CreateSubscriptionEventStore1780000000000
-  implements MigrationInterface
-{
+export class CreateSubscriptionEventStore1780000000000 implements MigrationInterface {
   name = 'CreateSubscriptionEventStore1780000000000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
