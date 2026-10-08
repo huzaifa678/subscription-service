@@ -6,8 +6,7 @@ export type SubscriptionEvent = {
 
 /** Topics the application publishes lifecycle events to. */
 export type SubscriptionEventTopic =
-  | 'subscription.created'
-  | 'subscription.updated';
+  'subscription.created' | 'subscription.updated';
 
 /**
  * Driven port: publishing subscription lifecycle events.
