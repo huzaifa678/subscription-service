@@ -14,6 +14,11 @@ const config: Config.InitialOptions = {
     '^.+\\.ts$': ['ts-jest', { tsconfig: 'tsconfig.jest.json' }],
   },
 
+  testPathIgnorePatterns: [
+    '/node_modules/',
+    '<rootDir>/test/subscription.pact.provider.spec.ts',
+  ],
+
   moduleNameMapper: {
     '^@domain/(.*)$': '<rootDir>/src/subscription/domain/$1',
     '^@application/(.*)$': '<rootDir>/src/subscription/application/$1',
