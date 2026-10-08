@@ -4,7 +4,7 @@ on:
   push:
     branches: [dev]
     paths: [subscription-service/**]
-
+  workflow_dispatch:
 jobs:
   ci:
     runs-on: ubuntu-latest
