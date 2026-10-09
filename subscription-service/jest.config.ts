@@ -32,11 +32,6 @@ const config: Config.InitialOptions = {
 
   testRegex: '.*\\.spec\\.ts$',
 
-  testPathIgnorePatterns: [
-    '/node_modules/',
-    '<rootDir>/test/subscription.pact.provider.spec.ts',
-  ],
-
   collectCoverage: true,
   coverageDirectory: 'coverage',
 };
