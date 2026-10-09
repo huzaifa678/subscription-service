@@ -1,0 +1,20 @@
+strictDepBuilds: false
+allowBuilds:
+  '@apollo/protobufjs': false
+  cpu-features: false
+  esbuild: false
+  protobufjs: false
+  ssh2: false
+
+# Security overrides for transitive dependencies that resolve to vulnerable versions.
+# The direct bump of @opentelemetry/auto-instrumentations-node to ^0.75.0 clears the
+# old 0.211.0 otel stack (sdk-node / exporter-prometheus / propagator-jaeger@2.5.0);
+# these cover what remains:
+overrides:
+  # CVE-2026-41242 (RCE, CRITICAL) + CVE-2026-44289/44290/44291/44293/48712 (DoS/RCE).
+  # 7.x in the tree (7.6.6) is already patched, so scope the override to the 8.x line.
+  'protobufjs@>=8.0.0 <8.4.1': '8.4.1'
+  # CVE-2026-104852 (prototype-pollution DoS in mergeDeep).
+  '@graphql-tools/utils': '^12.0.3'
+  # CVE-2026-59892 (DoS via malformed HTTP header decoding); 2.7.1 is still vulnerable.
+  '@opentelemetry/propagator-jaeger': '^2.9.0'
