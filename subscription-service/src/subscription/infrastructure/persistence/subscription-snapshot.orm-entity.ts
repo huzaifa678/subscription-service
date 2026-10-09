@@ -1,5 +1,5 @@
 import { Entity, PrimaryColumn, Column, UpdateDateColumn } from 'typeorm';
-import { SubscriptionProps } from '@domain/subscription';
+import type { SubscriptionProps } from '@domain/subscription';
 
 /**
  * Persistence model for aggregate snapshots (`subscription_snapshot`).
