@@ -1,0 +1,101 @@
+# Local development stack for subscription-service (NestJS + TypeORM).
+#   docker compose up --build
+# TypeORM runs with synchronize=false, so apply the schema once with:
+#   docker compose --profile migrate run --rm migrate
+name: subscription-service
+
+x-db-env: &db-env
+  POSTGRES_HOST: postgres
+  POSTGRES_PORT: "5432"
+  POSTGRES_USER: subscription_user
+  POSTGRES_PASSWORD: subscription_password
+  POSTGRES_DB: subscription_db
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: subscription_db
+      POSTGRES_USER: subscription_user
+      POSTGRES_PASSWORD: subscription_password
+    ports:
+      - "5433:5432" # subscription's documented host port
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U subscription_user -d subscription_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  kafka:
+    image: confluentinc/cp-kafka:7.7.1
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
+    healthcheck:
+      test: ["CMD", "kafka-broker-api-versions", "--bootstrap-server", "localhost:9092"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  schema-registry:
+    image: confluentinc/cp-schema-registry:7.7.1
+    depends_on:
+      kafka:
+        condition: service_healthy
+    environment:
+      SCHEMA_REGISTRY_HOST_NAME: schema-registry
+      SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: PLAINTEXT://kafka:9092
+      SCHEMA_REGISTRY_LISTENERS: http://0.0.0.0:9094
+    ports:
+      - "9094:9094"
+
+  subscription-service:
+    build:
+      context: ./subscription-service
+      dockerfile: Dockerfile
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      schema-registry:
+        condition: service_started
+    environment:
+      <<: *db-env
+      PORT: "8081"
+      KAFKA_BROKER: kafka:9092
+      KAFKA_CLIENT_ID: subscription-service
+      SCHEMA_REGISTRY_URL: http://schema-registry:9094
+      OTEL_SERVICE_NAME: subscription-service
+    ports:
+      - "8081:8081" # REST/HTTP
+      - "50051:50051" # gRPC (billing-service calls this)
+
+  # One-shot schema migration. Not started by `up`; run on demand (see header).
+  migrate:
+    profiles: ["migrate"]
+    build:
+      context: ./subscription-service
+      dockerfile: Dockerfile
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      <<: *db-env
+    command: ["node", "node_modules/.bin/typeorm", "migration:run", "-d", "dist/data-source.js"]
+
+volumes:
+  pgdata:
