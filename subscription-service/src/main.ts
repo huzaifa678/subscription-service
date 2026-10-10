@@ -17,7 +17,10 @@ async function bootstrap() {
     transport: Transport.GRPC,
     options: {
       package: 'subscription.v1',
-      protoPath: join(process.cwd(), 'temp-protos/subscription/v1/subscription.proto'),
+      protoPath: join(
+        process.cwd(),
+        'temp-protos/subscription/v1/subscription.proto',
+      ),
       url: '0.0.0.0:50051',
       loader: {
         includeDirs: [join(process.cwd(), 'temp-protos')],
