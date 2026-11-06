@@ -1,10 +1,12 @@
-FROM node:22-alpine@sha256:0a7108bf6c7bf5de370ffb1a3ed6be93d405b43ff159f681a8d18c0e2bc2e402 AS deps                                                                                           
+# node:22-alpine — Alpine 3.24.4, ships zlib 1.3.2-r1 (fixes CVE-2026-85091).
+# Re-resolve with `crane digest node:22-alpine` when bumping.
+FROM node:22-alpine@sha256:0e1754758c2df4cfa3e68d59e2e1b7374bb7fd9ea6328eaaacf15cc934af8202 AS deps                                                                                           
   WORKDIR /app                                                                                                          
   RUN corepack enable && corepack prepare pnpm@12.10.1 --activate                                                        
   COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./                                                                                   
   RUN pnpm install --frozen-lockfile                                                                                    
                                                                                                                         
-  FROM node:22-alpine@sha256:0a7108bf6c7bf5de370ffb1a3ed6be93d405b43ff159f681a8d18c0e2bc2e402 AS build                                                                                          
+  FROM node:22-alpine@sha256:0e1754758c2df4cfa3e68d59e2e1b7374bb7fd9ea6328eaaacf15cc934af8202 AS build                                                                                          
   WORKDIR /app                                                                                                          
   RUN corepack enable && corepack prepare pnpm@12.10.1 --activate       
   RUN apk add --no-cache curl \
@@ -17,10 +19,10 @@ FROM node:22-alpine@sha256:0a7108bf6c7bf5de370ffb1a3ed6be93d405b43ff159f681a8d18
       export BUF_TOKEN="$(cat /run/secrets/buf_token)" \
       && pnpm build                                                                                                        
                                                                                                                         
-  FROM node:22-alpine@sha256:0a7108bf6c7bf5de370ffb1a3ed6be93d405b43ff159f681a8d18c0e2bc2e402 AS runtime                                                                                        
-  WORKDIR /app                                                                                                          
-  ENV NODE_ENV=production                                                                                               
-  RUN addgroup -S appgroup && adduser -S appuser -G appgroup                                                            
+  FROM node:22-alpine@sha256:0e1754758c2df4cfa3e68d59e2e1b7374bb7fd9ea6328eaaacf15cc934af8202 AS runtime
+  WORKDIR /app
+  ENV NODE_ENV=production
+  RUN addgroup -S appgroup && adduser -S appuser -G appgroup
   RUN rm -rf /usr/local/lib/node_modules/npm /usr/local/lib/node_modules/corepack \
       /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack
   COPY --from=build /app/node_modules ./node_modules                                                                    
