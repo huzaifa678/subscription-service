@@ -24,9 +24,12 @@ FROM node:22-alpine@sha256:0a7108bf6c7bf5de370ffb1a3ed6be93d405b43ff159f681a8d18
   RUN rm -rf /usr/local/lib/node_modules/npm /usr/local/lib/node_modules/corepack \
       /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack
   COPY --from=build /app/node_modules ./node_modules                                                                    
-  COPY --from=build /app/dist ./dist                                                                                    
-  COPY --from=build /app/package.json ./package.json                                                                  
+  COPY --from=build /app/dist ./dist
+  COPY --from=build /app/package.json ./package.json
+  COPY --from=build /app/src/temp-protos ./temp-protos
+  COPY --from=build /app/src/schema.gql ./src/schema.gql
+  RUN chown -R appuser:appgroup /app/src
   USER appuser                                                                                                          
   EXPOSE 8081                                                                                                           
   EXPOSE 50051                                                                                                          
-  CMD ["node", "dist/main.js"] 
+  CMD ["node", "dist/main.js"]
