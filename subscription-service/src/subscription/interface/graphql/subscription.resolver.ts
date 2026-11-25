@@ -1,4 +1,4 @@
-import { Resolver, Query, Mutation, Args, ID } from '@nestjs/graphql';
+import { Resolver, Query, Mutation, Args, ID, Context } from '@nestjs/graphql';
 import { SubscriptionType } from '@interface/graphql/subscription.type';
 import { CreateSubscriptionInput } from '@application/dtos/create-subscription.dto';
 import { UpdateSubscriptionInput } from '@application/dtos/update-subscription.dto';
@@ -25,9 +25,15 @@ export class SubscriptionResolver {
   }
 
   @Mutation(() => SubscriptionType)
-  createSubscription(@Args('input') input: CreateSubscriptionInput) {
+  createSubscription(
+    @Args('input') input: CreateSubscriptionInput,
+    @Context()
+    ctx?: { req?: { headers?: Record<string, string | string[] | undefined> } },
+  ) {
+    const raw = ctx?.req?.headers?.['idempotency-key'];
+    const idempotencyKey = Array.isArray(raw) ? raw[0] : raw;
     return this.trace('createSubscription', 'subscription.create', () =>
-      this.createSubscriptionUseCase.execute(input),
+      this.createSubscriptionUseCase.execute(input, idempotencyKey),
     );
   }
 

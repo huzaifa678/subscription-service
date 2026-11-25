@@ -79,13 +79,15 @@ export class Subscription {
   // --- Commands (raise events) ---------------------------------------------
 
   /** Opens a new ACTIVE subscription with a fresh 30-day billing period. */
-  static create({ userId, planId }: NewSubscription): Subscription {
+  static create({ userId, planId }: NewSubscription, id?: string): Subscription {
     const now = new Date();
-    const id = uuidv4();
+    // A caller-supplied id (derived from an Idempotency-Key) makes a retry collide on the event
+    // store's uniqueness instead of opening a second subscription; otherwise the id is random.
+    const subscriptionId = id ?? uuidv4();
     const created: SubscriptionCreatedEvent = {
       type: 'subscription.created',
       eventId: uuidv4(),
-      subscriptionId: id,
+      subscriptionId,
       occurredAt: now,
       userId,
       planId,
@@ -95,7 +97,7 @@ export class Subscription {
       cancelAtPeriodEnd: false,
       createdAt: now,
     };
-    return Subscription.seed(id).raise(created);
+    return Subscription.seed(subscriptionId).raise(created);
   }
 
   /** Applies a partial set of externally-driven changes (status / cancel flag). */
