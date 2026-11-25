@@ -41,9 +41,10 @@ describe('SubscriptionResolver', () => {
     const input = { userId: 'u1', planId: 'p1' };
     mockCreate.execute.mockResolvedValue({ id: '1', ...input });
 
-    const result = await resolver.createSubscription(input as any);
+    const ctx = { req: { headers: { 'idempotency-key': 'key-1' } } };
+    const result = await resolver.createSubscription(input as any, ctx as any);
 
-    expect(mockCreate.execute).toHaveBeenCalledWith(input);
+    expect(mockCreate.execute).toHaveBeenCalledWith(input, 'key-1');
     expect(result.id).toBe('1');
   });
 
